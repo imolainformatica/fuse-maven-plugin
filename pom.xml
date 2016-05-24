@@ -8,7 +8,45 @@
 
     <name>JBoss Fuse Maven Plugin</name>
     <description>Maven plugin used to deploy and testing Jboss Fuse applications</description>
-
+    <url></url>
+    <inceptionYear>2016</inceptionYear>
+    
+    <organization>
+        <name>Imola Informatica S.P.A.</name>
+        <url>http://www.imolinfo.it/</url>
+    </organization>
+    
+    <developers>
+        <developer>
+            <name>Giacomo Carnevale</name>
+            <organization>Imola Informatica S.P.A.</organization>
+            <organizationUrl>http://www.imolinfo.it/</organizationUrl>
+            <email>gcarnevale@imolinfo.it</email>
+        </developer>
+        <developer>
+            <name>Luca Acquaviva</name>
+            <organization>Imola Informatica S.P.A.</organization>
+            <organizationUrl>http://www.imolinfo.it/</organizationUrl>
+            <email>lacquaviva@imolinfo.it</email>
+        </developer>
+    </developers>
+    
+    
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+    
+    <scm>
+        <connection>scm:git:https://github.com/imolainformatica/fuse-maven-plugin.git</connection>
+        <developerConnection>scm:git:https://github.com/imolainformatica/fuse-maven-plugin.git</developerConnection>
+        <url>https://github.com/imolainformatica/fuse-maven-plugin</url>
+    </scm>
+    
+    
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
