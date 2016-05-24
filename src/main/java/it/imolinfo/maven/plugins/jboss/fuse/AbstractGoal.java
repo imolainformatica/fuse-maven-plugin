@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.net.URLConnection;
 import org.apache.commons.io.IOUtils;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -22,6 +23,7 @@ public abstract class AbstractGoal extends AbstractMojo {
 
     protected static final String JBOSS_FUSE_DOWNLOAD_URL = "https://repository.jboss.org/nexus/content/groups/ea/org/jboss/fuse/jboss-fuse-full/6.2.1.redhat-083/jboss-fuse-full-6.2.1.redhat-083.zip";
     protected static final String JBOSS_FUSE_ZIP_FILE = "jboss-fuse-full-6.2.1.redhat-083.zip";
+    protected static final String JBOSS_FUSE_DOWNLOAD_DIRECTORY = "it/imolinfo/maven/plugins/jboss-fuse-maven-plugin";
     protected static final String JBOSS_FUSE_DIRECTORY_NAME = "jboss-fuse-6.2.1.redhat-083";
     protected static final File TARGET_DIRECTORY = new File("target");
     protected static final File JBOSS_FUSE_DIRECTORY = new File(String.format("target/%s", JBOSS_FUSE_DIRECTORY_NAME));
@@ -38,7 +40,7 @@ public abstract class AbstractGoal extends AbstractMojo {
     protected static final Long DEFAULT_STOP_TIMEOUT = 20000L;
     protected static final Long DEFAULT_DEPLOY_TIMEOUT = 60000L;
     protected static final Long SLEEP = 1000L;
-    protected static final Long DOWNLOAD_SLEEP = 30000L;
+    protected static final Long DOWNLOAD_SLEEP = 1000L;
     //CMD
     protected static final String START_CMD = String.format("%s/start", JBOSS_FUSE_BIN_DIRECTORY.getAbsolutePath());
     protected static final String STOP_CMD = String.format("%s/stop", JBOSS_FUSE_BIN_DIRECTORY.getAbsolutePath());
@@ -62,7 +64,7 @@ public abstract class AbstractGoal extends AbstractMojo {
     protected String downloadUrl;
 
     private Boolean downloadCompleted = Boolean.FALSE;
-    
+
     public AbstractGoal() {
         LOG = super.getLog();
     }
@@ -76,7 +78,7 @@ public abstract class AbstractGoal extends AbstractMojo {
     protected void download() throws MojoExecutionException {
         downloadUrl = System.getProperty("downloadUrl") != null ? System.getProperty("downloadUrl") : downloadUrl == null ? JBOSS_FUSE_DOWNLOAD_URL : downloadUrl;
         String localRepository = settings.getLocalRepository();
-        String fuseDownloadDirectoryPath = String.format("%s/%s/%s", project.getGroupId().replaceAll("\\.", "/"), project.getArtifactId(), localRepository);
+        String fuseDownloadDirectoryPath = String.format("%s/%s", localRepository, JBOSS_FUSE_DOWNLOAD_DIRECTORY);
         File fuseZipFile = new File(String.format("%s/%s", fuseDownloadDirectoryPath, JBOSS_FUSE_ZIP_FILE));
         if (!fuseZipFile.exists()) {
             try {
@@ -90,11 +92,13 @@ public abstract class AbstractGoal extends AbstractMojo {
     }
 
     private void download(File fuseZipFile) throws IOException {
-        LOG.info(String.format("Download %s ...", downloadUrl));
+        LOG.info(String.format("Download %s in %s...", downloadUrl, fuseZipFile.getAbsolutePath()));
         URL url = new URL(downloadUrl);
-        try (InputStream inputStream = url.openStream()) {
+        URLConnection connection = url.openConnection();
+        try (InputStream inputStream = connection.getInputStream()) {
+            Long contentLength = connection.getContentLengthLong();
             try (FileOutputStream downloadOutputStream = new FileOutputStream(fuseZipFile)) {
-                new Thread(new DownloadProgress(fuseZipFile)).start();
+                new Thread(new DownloadProgress(fuseZipFile, contentLength)).start();
                 IOUtils.copyLarge(inputStream, downloadOutputStream);
                 downloadOutputStream.flush();
                 LOG.info(String.format("Size: %d bytes", fuseZipFile.length()));
@@ -118,15 +122,22 @@ public abstract class AbstractGoal extends AbstractMojo {
     class DownloadProgress implements Runnable {
 
         private final File downloadFile;
+        private final Long contentLength;
 
-        public DownloadProgress(File downloadFile) {
+        public DownloadProgress(File downloadFile, Long contentLength) {
             this.downloadFile = downloadFile;
+            this.contentLength = contentLength;
         }
 
         @Override
         public void run() {
             while (!downloadCompleted) {
-                LOG.info(String.format("Downloaded %d MB", downloadFile.length() / MB));
+                try {
+                    Long perc = (100 * downloadFile.length()) / contentLength;
+                    System.out.write(String.format("\r  %d%% %d/%dMB", perc, downloadFile.length() / (1024 * 1024), contentLength / (1024 * 1024)).getBytes());
+                } catch (IOException ex) {
+                    LOG.error(ex.getMessage(), ex);
+                }
                 try {
                     Thread.sleep(DOWNLOAD_SLEEP);
                 } catch (InterruptedException ex) {
