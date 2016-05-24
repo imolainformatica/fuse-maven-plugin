@@ -1,0 +1,18 @@
+------
+
+Introduzione
+------
+
+${project.name}
+
+ Maven Plugin for development of Oracle Service Bus artifacts.
+
+* Goals Overview
+
+** General Information about the plugin goals:
+
+ * {{{./web-configuration-mojo.html}arch-jbus-management:web-configuration}} Configuration Management of a Jbus Project in the build phase of the war package.
+
+* Requirements
+
+ * Linux OS
