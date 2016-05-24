@@ -8,7 +8,7 @@
 
     <name>JBoss Fuse Maven Plugin</name>
     <description>Maven plugin used to deploy and testing Jboss Fuse applications</description>
-    <url></url>
+    <url>https://github.com/imolainformatica/fuse-maven-plugin</url>
     <inceptionYear>2016</inceptionYear>
     
     <organization>
@@ -61,6 +61,20 @@
             </resource>
         </resources>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>1.6</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
