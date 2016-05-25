@@ -11,16 +11,19 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.settings.Settings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author giacomo
  */
 public abstract class AbstractGoal extends AbstractMojo {
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractGoal.class);
+    
     public static final String LOCALHOST = "127.0.0.1";
     public static final Integer SSH_PORT = 8101;
     public static final String SSH_USER = "admin";
@@ -55,8 +58,6 @@ public abstract class AbstractGoal extends AbstractMojo {
 
     protected static File JBOSS_FUSE_REPOSITORY_DIRECTORY;
 
-    protected static Log LOG;
-
     @Parameter(defaultValue = "${settings}", readonly = true, required = true)
     protected Settings settings;
     @Parameter(defaultValue = "${project}", required = true, readonly = true)
@@ -66,9 +67,6 @@ public abstract class AbstractGoal extends AbstractMojo {
 
     private Boolean downloadCompleted = Boolean.FALSE;
 
-    public AbstractGoal() {
-        LOG = super.getLog();
-    }
 
     protected void initBinDirectory() {
         for (File binFile : JBOSS_FUSE_BIN_DIRECTORY.listFiles()) {
@@ -93,7 +91,7 @@ public abstract class AbstractGoal extends AbstractMojo {
     }
 
     private void download(File fuseZipFile) throws IOException {
-        LOG.info(String.format("Download %s in %s...", downloadUrl, fuseZipFile.getAbsolutePath()));
+        LOG.info("Download {} in {}...", downloadUrl, fuseZipFile.getAbsolutePath());
         URL url = new URL(downloadUrl);
         URLConnection connection = url.openConnection();
         try (InputStream inputStream = connection.getInputStream()) {
@@ -102,19 +100,18 @@ public abstract class AbstractGoal extends AbstractMojo {
                 new Thread(new DownloadProgress(fuseZipFile, contentLength)).start();
                 IOUtils.copyLarge(inputStream, downloadOutputStream);
                 downloadOutputStream.flush();
-                LOG.info(String.format("Size: %d bytes", fuseZipFile.length()));
             } finally {
                 downloadCompleted = Boolean.TRUE;
             }
         }
-        LOG.info(String.format("Download di %s completato", downloadUrl));
+        LOG.info("Download completed");
     }
 
     private static void unzip(File zipFile) throws MojoExecutionException {
         try {
             UnzipUtility.unzip(zipFile.getAbsolutePath(), TARGET_DIRECTORY.getAbsolutePath());
         } catch (MojoExecutionException ex) {
-            LOG.error(String.format("Unzip error %s", zipFile.getAbsolutePath()), ex);
+            LOG.error(ex.getMessage(), ex);
             zipFile.delete();
             throw ex;
         }

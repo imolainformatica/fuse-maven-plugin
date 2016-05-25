@@ -16,21 +16,20 @@ import org.apache.maven.plugins.annotations.Mojo;
 
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Mojo(name = "deploy", requiresProject = false, defaultPhase = LifecyclePhase.PRE_INTEGRATION_TEST)
 public class Deploy extends AbstractGoal {
-
+    private static final Logger LOG = LoggerFactory.getLogger(Deploy.class);
     @Parameter
     private List<Deployment> deployments;
 
-    public Deploy() {
-        super();
-    }
     
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
-        LOG.info("Start deploy");
         if (deployments != null) {
+            LOG.info("Start deploy {} items", deployments.size());
             for (Deployment deployment : deployments) {
                 ExceptionManager.throwMojoExecutionExceptionIfNull(deployment.getSource(), "Null source");
                 ExceptionManager.throwMojoExecutionException(!deployment.getSource().exists(), String.format("%s not exists", deployment.getSource().getAbsolutePath()));
@@ -42,7 +41,6 @@ public class Deploy extends AbstractGoal {
 
     private void deploy(Deployment deployment) throws MojoExecutionException, MojoFailureException {
         try {
-            //LOG.info(String.format("Deploy %s in %s", deployment.getSource().getAbsolutePath(), JBOSS_FUSE_DEPLOY_DIRECTORY.getAbsolutePath()));
             FileUtils.copyFileToDirectory(deployment.getSource(), JBOSS_FUSE_DEPLOY_DIRECTORY);
             if (deployment.getWaitTime() != null) {
                 Thread.sleep(deployment.getWaitTime());
@@ -72,15 +70,12 @@ public class Deploy extends AbstractGoal {
             deploymentStatusStr = SSHUtility.executeCmd(LIST_CMD);
             Matcher matcher = pattern.matcher(deploymentStatusStr);
             started = matcher.find() || matcher.matches();
-            //LOG.info(String.format("Wait for bundle %s. Status: %s", deploymentName, deploymentStatusStr));
-            System.out.write("\f".getBytes());
             System.out.write(String.format("\r %s", deploymentStatusStr).getBytes());
             
             Thread.sleep(SLEEP);
             if (System.currentTimeMillis() - startTime > timeout) {
-                throw new MojoExecutionException("Timeout durante l'avvio...");
+                throw new MojoExecutionException("Deploy timeout");
             }
         } while (!started);
-        //LOG.info(String.format("%s started", deploymentName));
     }
 }

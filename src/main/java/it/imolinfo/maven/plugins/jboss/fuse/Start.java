@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import org.apache.commons.io.FileUtils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -15,11 +14,13 @@ import org.apache.maven.plugins.annotations.Mojo;
 
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Parameter;
-import org.codehaus.plexus.util.IOUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Mojo(name = "start", requiresProject = false, defaultPhase = LifecyclePhase.PRE_INTEGRATION_TEST)
 public class Start extends AbstractGoal {
-
+    private static final Logger LOG = LoggerFactory.getLogger(Start.class);
+    
     private static final String USER_PROPERTIES_FILE_NAME = "users.properties";
     private static final String DEFAULT_ADMIN_CONFIG = "#admin=admin,admin,manager,viewer,Monitor, Operator, Maintainer, Deployer, Auditor, Administrator, SuperUser";
     private static final String ADMIN_CONFIG = "admin=admin,admin,manager,viewer,Monitor, Operator, Maintainer, Deployer, Auditor, Administrator, SuperUser";
@@ -29,10 +30,6 @@ public class Start extends AbstractGoal {
 
     @Parameter
     private List<Cfg> cfg;
-
-    public Start() {
-        super();
-    }
 
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
@@ -49,9 +46,7 @@ public class Start extends AbstractGoal {
         Runtime runtime = Runtime.getRuntime();
         try {
             runtime.exec(START_CMD).waitFor();
-            String statusStr;
-            Process status;
-            LOG.info(String.format("Trying connect to ssh:%s@%s:%d ...", SSH_USER, LOCALHOST, SSH_PORT));
+            LOG.info("Trying connect to ssh:{}@{}:{} ...", SSH_USER, LOCALHOST, SSH_PORT);
             Long startTime = System.currentTimeMillis();
             Boolean sshAvailable;
             do {
@@ -64,7 +59,7 @@ public class Start extends AbstractGoal {
             if (!sshAvailable) {
                 throw new MojoExecutionException(String.format("SSH port %d unavailable", SSH_PORT));
             }
-            LOG.info(String.format("Connected to ssh:%s@%s:%d...", SSH_USER, LOCALHOST, SSH_PORT));
+            LOG.info("Connected to ssh:{}@{}:{}...", SSH_USER, LOCALHOST, SSH_PORT);
         } catch (Exception ex) {
             new Shutdown().execute();
             throw new MojoExecutionException(ex.getMessage(), ex);
@@ -113,7 +108,7 @@ public class Start extends AbstractGoal {
         ExceptionManager.throwMojoExecutionExceptionIfNull(configuration.getSource(), "Null source File");
         ExceptionManager.throwMojoExecutionException(!configuration.getSource().exists(), "Source file not exists");
         ExceptionManager.throwMojoExecutionException(!destination.isDirectory(), String.format("%s is file", destination.getAbsolutePath()));
-        LOG.info(String.format("Add %s in %s", configuration.getSource().getAbsolutePath(), configuration.getDestination()));
+        LOG.info("Add {} in {}", configuration.getSource().getAbsolutePath(), configuration.getDestination());
         try {
             FileUtils.copyFileToDirectory(configuration.getSource(), destination);
         } catch (IOException ex) {
@@ -124,7 +119,7 @@ public class Start extends AbstractGoal {
     private static void append(Cfg configuration, File destination) throws MojoExecutionException {
         ExceptionManager.throwMojoExecutionExceptionIfNull(configuration.getProperties(), "Null properties");
         ExceptionManager.throwMojoExecutionException(destination.isDirectory(), String.format("%s is directory", destination.getAbsolutePath()));
-        LOG.info(String.format("Append properties in %s", destination.getAbsolutePath()));
+        LOG.info("Append properties in {}", destination.getAbsolutePath());
         try {
             StringBuilder sb = new StringBuilder(FileUtils.readFileToString(destination));
             configuration.getProperties().keySet().stream().forEach((key) -> {
@@ -141,7 +136,7 @@ public class Start extends AbstractGoal {
         ExceptionManager.throwMojoExecutionExceptionIfNull(configuration.getTarget(), "Null target");
         ExceptionManager.throwMojoExecutionExceptionIfNull(configuration.getReplacement(), "Null replacement");
         ExceptionManager.throwMojoExecutionException(destination.isDirectory(), String.format("%s is directory", destination.getAbsolutePath()));
-        LOG.info(String.format("Replace %s with %s in %s", configuration.getTarget(), configuration.getReplacement(), destination.getAbsolutePath()));
+        LOG.info("Replace {} with {} in {}", configuration.getTarget(), configuration.getReplacement(), destination.getAbsolutePath());
         replace(destination, configuration.getTarget(), configuration.getReplacement());
     }
 
