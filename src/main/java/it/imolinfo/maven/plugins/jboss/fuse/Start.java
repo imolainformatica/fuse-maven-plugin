@@ -48,23 +48,11 @@ public class Start extends AbstractGoal {
     private void startJbosFuse() throws MojoExecutionException, MojoFailureException {
         Runtime runtime = Runtime.getRuntime();
         try {
-            runtime.exec(START_CMD);
+            runtime.exec(START_CMD).waitFor();
             String statusStr;
             Process status;
+            LOG.info(String.format("Trying connect to ssh:%s@%s:%d ...", SSH_USER, LOCALHOST, SSH_PORT));
             Long startTime = System.currentTimeMillis();
-            do {
-                status = runtime.exec(STATUS_CMD);
-                status.waitFor(DEFAULT_STATUS_TIMEOUT, TimeUnit.MILLISECONDS);
-                statusStr = IOUtil.toString(status.getInputStream());
-                LOG.info(String.format("Wait for fuse: Status: %s", statusStr));
-                Thread.sleep(SLEEP);
-                if (System.currentTimeMillis() - startTime > timeout) {
-                    new Shutdown().execute();
-                    throw new MojoExecutionException("Timeout...");
-                }
-            } while (!statusStr.contains(RUNNING));
-            LOG.info(String.format("JBoss Fuse started...Check ssh port %d", SSH_PORT));
-            startTime = System.currentTimeMillis();
             Boolean sshAvailable;
             do {
                 if (System.currentTimeMillis() - startTime > SSH_TIMEOUT) {
@@ -76,7 +64,7 @@ public class Start extends AbstractGoal {
             if (!sshAvailable) {
                 throw new MojoExecutionException(String.format("SSH port %d unavailable", SSH_PORT));
             }
-            LOG.info(String.format("SSH port %d available", SSH_PORT));
+            LOG.info(String.format("Connected to ssh:%s@%s:%d...", SSH_USER, LOCALHOST, SSH_PORT));
         } catch (Exception ex) {
             new Shutdown().execute();
             throw new MojoExecutionException(ex.getMessage(), ex);

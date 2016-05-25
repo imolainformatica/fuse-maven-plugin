@@ -8,6 +8,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.SystemUtils;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.logging.Log;
@@ -20,7 +21,11 @@ import org.apache.maven.settings.Settings;
  * @author giacomo
  */
 public abstract class AbstractGoal extends AbstractMojo {
-
+    public static final String LOCALHOST = "127.0.0.1";
+    public static final Integer SSH_PORT = 8101;
+    public static final String SSH_USER = "admin";
+    public static final String SSH_PASSWORD = "admin";
+    
     protected static final String JBOSS_FUSE_DOWNLOAD_URL = "https://repository.jboss.org/nexus/content/groups/ea/org/jboss/fuse/jboss-fuse-full/6.2.1.redhat-083/jboss-fuse-full-6.2.1.redhat-083.zip";
     protected static final String JBOSS_FUSE_ZIP_FILE = "jboss-fuse-full-6.2.1.redhat-083.zip";
     protected static final String JBOSS_FUSE_DOWNLOAD_DIRECTORY = "it/imolinfo/maven/plugins/jboss-fuse-maven-plugin";
@@ -30,8 +35,6 @@ public abstract class AbstractGoal extends AbstractMojo {
     protected static final File JBOSS_FUSE_ETC_DIRECTORY = new File(String.format("%s/etc", JBOSS_FUSE_DIRECTORY.getAbsolutePath()));
     protected static final File JBOSS_FUSE_BIN_DIRECTORY = new File(String.format("%s/bin", JBOSS_FUSE_DIRECTORY.getAbsolutePath()));
     protected static final File JBOSS_FUSE_DEPLOY_DIRECTORY = new File(String.format("%s/deploy", JBOSS_FUSE_DIRECTORY.getAbsolutePath()));
-    protected static final String LOCALHOST = "127.0.0.1";
-    protected static final Integer SSH_PORT = 8101;
     protected static final Integer SSH_TIMEOUT = 60000;
     //TIMEOUT
     protected static final Long DEFAULT_START_TIMEOUT = 20000L;
@@ -42,10 +45,8 @@ public abstract class AbstractGoal extends AbstractMojo {
     protected static final Long SLEEP = 1000L;
     protected static final Long DOWNLOAD_SLEEP = 1000L;
     //CMD
-    protected static final String START_CMD = String.format("%s/start", JBOSS_FUSE_BIN_DIRECTORY.getAbsolutePath());
-    protected static final String STOP_CMD = String.format("%s/stop", JBOSS_FUSE_BIN_DIRECTORY.getAbsolutePath());
-    protected static final String STATUS_CMD = String.format("%s/status", JBOSS_FUSE_BIN_DIRECTORY.getAbsolutePath());
-    protected static final String CLIENT_CMD = String.format("%s/client", JBOSS_FUSE_BIN_DIRECTORY.getAbsolutePath());
+    protected static final String START_CMD =  SystemUtils.IS_OS_WINDOWS ? String.format("%s/start.bat", JBOSS_FUSE_BIN_DIRECTORY.getAbsolutePath()) : String.format("%s/start", JBOSS_FUSE_BIN_DIRECTORY.getAbsolutePath());
+    protected static final String STOP_CMD = SystemUtils.IS_OS_WINDOWS ? String.format("%s/stop.bat", JBOSS_FUSE_BIN_DIRECTORY.getAbsolutePath()) : String.format("%s/stop", JBOSS_FUSE_BIN_DIRECTORY.getAbsolutePath());
     protected static final String LIST_CMD = "list";
     //STATUS
     protected static final String RUNNING = "Running ...";

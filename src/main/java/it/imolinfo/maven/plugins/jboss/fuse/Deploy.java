@@ -42,7 +42,7 @@ public class Deploy extends AbstractGoal {
 
     private void deploy(Deployment deployment) throws MojoExecutionException, MojoFailureException {
         try {
-            LOG.info(String.format("Deploy %s in %s", deployment.getSource().getAbsolutePath(), JBOSS_FUSE_DEPLOY_DIRECTORY.getAbsolutePath()));
+            //LOG.info(String.format("Deploy %s in %s", deployment.getSource().getAbsolutePath(), JBOSS_FUSE_DEPLOY_DIRECTORY.getAbsolutePath()));
             FileUtils.copyFileToDirectory(deployment.getSource(), JBOSS_FUSE_DEPLOY_DIRECTORY);
             if (deployment.getWaitTime() != null) {
                 Thread.sleep(deployment.getWaitTime());
@@ -72,12 +72,15 @@ public class Deploy extends AbstractGoal {
             deploymentStatusStr = SSHUtility.executeCmd(LIST_CMD);
             Matcher matcher = pattern.matcher(deploymentStatusStr);
             started = matcher.find() || matcher.matches();
-            LOG.info(String.format("Wait for bundle %s. Status: %s", deploymentName, deploymentStatusStr));
+            //LOG.info(String.format("Wait for bundle %s. Status: %s", deploymentName, deploymentStatusStr));
+            System.out.write("\f".getBytes());
+            System.out.write(String.format("\r %s", deploymentStatusStr).getBytes());
+            
             Thread.sleep(SLEEP);
             if (System.currentTimeMillis() - startTime > timeout) {
                 throw new MojoExecutionException("Timeout durante l'avvio...");
             }
         } while (!started);
-        LOG.info(String.format("%s started", deploymentName));
+        //LOG.info(String.format("%s started", deploymentName));
     }
 }
