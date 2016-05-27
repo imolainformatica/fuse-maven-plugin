@@ -34,7 +34,7 @@ public class Start extends AbstractGoal {
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         LOG.info("Start jboss-fuse");
-        timeout = timeout == null ? DEFAULT_START_TIMEOUT : timeout;
+        timeout = timeout == null ? SSH_TIMEOUT : timeout;
         download();
         initBinDirectory();
         disableAdminPassword();
@@ -50,12 +50,12 @@ public class Start extends AbstractGoal {
             Long startTime = System.currentTimeMillis();
             Boolean sshAvailable;
             do {
-                if (System.currentTimeMillis() - startTime > SSH_TIMEOUT) {
+                if (System.currentTimeMillis() - startTime > timeout) {
                     new Shutdown().execute();
                     throw new MojoExecutionException("SSH timeout...");
                 }
                 Thread.sleep(SLEEP);
-            } while (!(sshAvailable = checkSSHPort()));
+            } while (!(sshAvailable = checkSSHPort(timeout.intValue())));
             if (!sshAvailable) {
                 throw new MojoExecutionException(String.format("SSH port %d unavailable", SSH_PORT));
             }
@@ -149,10 +149,10 @@ public class Start extends AbstractGoal {
         }
     }
 
-    private static Boolean checkSSHPort() throws MojoExecutionException {
+    private static Boolean checkSSHPort(Integer connectTimeout) throws MojoExecutionException {
         try {
             try (Socket socket = new Socket()) {
-                socket.connect(new InetSocketAddress(LOCALHOST, SSH_PORT), SSH_TIMEOUT);
+                socket.connect(new InetSocketAddress(LOCALHOST, SSH_PORT), connectTimeout);
                 return Boolean.TRUE;
             }
         } catch (Exception ex) {

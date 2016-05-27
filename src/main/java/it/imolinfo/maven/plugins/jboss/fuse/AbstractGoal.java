@@ -40,7 +40,6 @@ public abstract class AbstractGoal extends AbstractMojo {
     protected static final File JBOSS_FUSE_DEPLOY_DIRECTORY = new File(String.format("%s/deploy", JBOSS_FUSE_DIRECTORY.getAbsolutePath()));
     protected static final Integer SSH_TIMEOUT = 60000;
     //TIMEOUT
-    protected static final Long DEFAULT_START_TIMEOUT = 20000L;
     protected static final Long DEFAULT_STATUS_TIMEOUT = 10000L;
     protected static final Long DEFAULT_CLIENT_TIMEOUT = 10000L;
     protected static final Long DEFAULT_STOP_TIMEOUT = 20000L;
@@ -62,9 +61,7 @@ public abstract class AbstractGoal extends AbstractMojo {
     protected Settings settings;
     @Parameter(defaultValue = "${project}", required = true, readonly = true)
     protected MavenProject project;
-    @Parameter
-    protected String downloadUrl;
-
+    
     private Boolean downloadCompleted = Boolean.FALSE;
 
 
@@ -75,7 +72,6 @@ public abstract class AbstractGoal extends AbstractMojo {
     }
 
     protected void download() throws MojoExecutionException {
-        downloadUrl = System.getProperty("downloadUrl") != null ? System.getProperty("downloadUrl") : downloadUrl == null ? JBOSS_FUSE_DOWNLOAD_URL : downloadUrl;
         String localRepository = settings.getLocalRepository();
         String fuseDownloadDirectoryPath = String.format("%s/%s", localRepository, JBOSS_FUSE_DOWNLOAD_DIRECTORY);
         File fuseZipFile = new File(String.format("%s/%s", fuseDownloadDirectoryPath, JBOSS_FUSE_ZIP_FILE));
@@ -91,8 +87,8 @@ public abstract class AbstractGoal extends AbstractMojo {
     }
 
     private void download(File fuseZipFile) throws IOException {
-        LOG.info("Download {} in {}...", downloadUrl, fuseZipFile.getAbsolutePath());
-        URL url = new URL(downloadUrl);
+        LOG.info("Download {} in {}...", JBOSS_FUSE_DOWNLOAD_URL, fuseZipFile.getAbsolutePath());
+        URL url = new URL(JBOSS_FUSE_DOWNLOAD_URL);
         URLConnection connection = url.openConnection();
         try (InputStream inputStream = connection.getInputStream()) {
             Long contentLength = connection.getContentLengthLong();
@@ -132,7 +128,7 @@ public abstract class AbstractGoal extends AbstractMojo {
             while (!downloadCompleted) {
                 try {
                     Long perc = (100 * downloadFile.length()) / contentLength;
-                    System.out.write(String.format("\r  %d%% %d/%dMB", perc, downloadFile.length() / (1024 * 1024), contentLength / (1024 * 1024)).getBytes());
+                    System.out.write(String.format("\r  %d%% %d/%dMB", perc, downloadFile.length() / (MB), contentLength / (MB)).getBytes());
                 } catch (IOException ex) {
                     LOG.error(ex.getMessage(), ex);
                 }
