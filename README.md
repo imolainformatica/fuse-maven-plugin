@@ -16,11 +16,13 @@ mvn fuse:start
 
 Downloads, applies custom configuration and starts JBoss Fuse.
 At the first run, downloads JBoss Fuse by https://repository.jboss.org/nexus/content/groups/ea/org/jboss/ and saves it in *M2_HOME* directory. JBoss Fuse zip file, is copied and unzipped in target directory.
+
 #### Configuration
+
 | Parameter | Type | Required | Description | Default |
-|---|---|---|---|
-| cfg | List | False | The configuration list to apply JBoss Fuse | null|
-| timeout | Long | False | The timeout, in milliseconds, to wait for until JBoss Fuse is started| 60000 |
+|---|---|---|---|---|
+| cfg | List | False | The configuration list to apply JBoss Fuse | null |
+| timeout | Long | False | The timeout, in milliseconds, to wait for until JBoss Fuse is started | 60000 |
 
 ##### cfg Parameter
 
@@ -103,8 +105,8 @@ Copy dependencies file (*.jar*, *.xml*) in JBoss Fuse deploy directory and wait 
 #### Configuration
 
 | Parameter | Type | Required | Description | Default |
-|---|---|---|---|
-| deployments | List | False | The deployment list to deploy in JBoss Fuse | null|
+|---|---|---|---|---|
+| deployments | List | False | The deployment list to deploy in JBoss Fuse | null |
 
 ##### deployment Parameter
 
