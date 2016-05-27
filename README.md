@@ -21,7 +21,7 @@ At the first run, downloads JBoss Fuse by https://repository.jboss.org/nexus/con
 
 | Parameter | Type | Required | Description | Default |
 |---|---|---|---|---|
-| cfg | List | False | The configuration list to apply JBoss Fuse | null |
+| cfg | List | False | The configuration list to apply to JBoss Fuse | null |
 | timeout | Long | False | The timeout, in milliseconds, to wait for until JBoss Fuse is started | 60000 |
 
 ##### cfg Parameter
