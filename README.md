@@ -1,5 +1,5 @@
 # JBoss Fuse Maven Plugin
-The jboss-fuse-maven-plugin is used to deploy and testing your JBoss Fuse application. There is also the ability to deploy application's dependencies and apply custom configuration.
+The jboss-fuse-maven-plugin is used to deploy and test your JBoss Fuse application. There is also the ability to deploy application's dependencies and apply custom configuration.
 
 ## Goals Overview
 * **fuse:start** downloads, applies custom configuration and starts JBoss Fuse.
@@ -117,7 +117,7 @@ Copy dependencies file (*.jar*, *.xml*) in JBoss Fuse deploy directory and wait 
 | expectedContextStatus | String | False| The expected bundle context (blueprint, spring) status | null|
 | deploymentName | String |False| The bundle name that will show on JBoss Fuse console| source file name |
 | timeout | Long | False | The timeout, in milliseconds, to wait for bundle's status until it doesn't matches to *expectedStatus* and *expectedContextStatus*  | 60000 |
-| waitTime | Long | False | The time, in milliseconds, to wait for before to check bundle's status | null|
+| waitTime | Long | False | The time, in milliseconds, to wait for check bundle's status | null|
 
 #### Example
 
