@@ -19,7 +19,7 @@ import org.apache.maven.plugins.annotations.Parameter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@Mojo(name = "deploy", requiresProject = false, defaultPhase = LifecyclePhase.PRE_INTEGRATION_TEST)
+@Mojo(name = "deploy", requiresProject = true, defaultPhase = LifecyclePhase.PRE_INTEGRATION_TEST)
 public class Deploy extends AbstractGoal {
     private static final Logger LOG = LoggerFactory.getLogger(Deploy.class);
     @Parameter
