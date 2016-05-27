@@ -36,7 +36,7 @@ Appends properties in the destination file
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 |destination|String|True|The destination file path|
-|properties|List|True|List of properties to append destination file|
+|properties|List|True|List of properties to append to destination file|
 
 ###### REPLACE Option
 Replaces target string with replacement string in the destination file
