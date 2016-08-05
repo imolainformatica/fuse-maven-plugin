@@ -20,7 +20,7 @@ public class Cfg {
     private String target;
     private String replacement;
     private Properties properties;
-
+    
     public File getSource() {
         return source;
     }

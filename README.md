@@ -160,6 +160,13 @@ Stops JBoss Fuse
    <groupId>it.imolinfo.maven.plugins</groupId>
    <artifactId>jboss-fuse-maven-plugin</artifactId>
    <version>1.0.1</version>
+   <dependencies>
+      <dependency>
+          <groupId>groupId-bundle-to-deploy</groupId>
+          <artifactId>artifactId-bundle-to-deploy</artifactId>
+          <version>x.y.z</version>
+      </dependency>
+   </dependencies>
    <executions>
       <execution>
          <id>Start Fuse</id>
