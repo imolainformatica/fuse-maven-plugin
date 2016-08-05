@@ -8,8 +8,12 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.List;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
+import org.apache.maven.model.Dependency;
+import org.apache.maven.model.Plugin;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
+import org.apache.maven.plugin.descriptor.PluginDescriptor;
 import org.apache.maven.plugins.annotations.Mojo;
 
 import org.apache.maven.plugins.annotations.LifecyclePhase;
@@ -19,8 +23,9 @@ import org.slf4j.LoggerFactory;
 
 @Mojo(name = "start", requiresProject = false, defaultPhase = LifecyclePhase.PRE_INTEGRATION_TEST)
 public class Start extends AbstractGoal {
+
     private static final Logger LOG = LoggerFactory.getLogger(Start.class);
-    
+
     private static final String USER_PROPERTIES_FILE_NAME = "users.properties";
     private static final String DEFAULT_ADMIN_CONFIG = "#admin=admin,admin,manager,viewer,Monitor, Operator, Maintainer, Deployer, Auditor, Administrator, SuperUser";
     private static final String ADMIN_CONFIG = "admin=admin,admin,manager,viewer,Monitor, Operator, Maintainer, Deployer, Auditor, Administrator, SuperUser";
@@ -60,6 +65,7 @@ public class Start extends AbstractGoal {
                 throw new MojoExecutionException(String.format("SSH port %d unavailable", SSH_PORT));
             }
             LOG.info("Connected to ssh:{}@{}:{}...", SSH_USER, LOCALHOST, SSH_PORT);
+            deployDependencies();
         } catch (Exception ex) {
             new Shutdown().execute();
             throw new MojoExecutionException(ex.getMessage(), ex);
@@ -73,6 +79,28 @@ public class Start extends AbstractGoal {
                     configure(configuration);
                 } catch (IOException ex) {
                     throw new MojoExecutionException(ex.getMessage(), ex);
+                }
+            }
+        }
+    }
+
+    private void deployDependencies() throws IOException {
+        LOG.info("Deploy plugin dependencies");
+        PluginDescriptor pluginDescriptor = (PluginDescriptor) super.getPluginContext().get("pluginDescriptor");
+        String pluginGroupId = pluginDescriptor.getGroupId();
+        String pluginArtifactiId = pluginDescriptor.getArtifactId();
+        for (Plugin plugin : project.getBuild().getPlugins()) {
+            if (plugin.getGroupId().equals(pluginGroupId) && plugin.getArtifactId().equals(pluginArtifactiId)) {
+                for (Dependency dependency : plugin.getDependencies()) {
+                    LOG.info("Deploy {}:{}:{}", dependency.getGroupId(), dependency.getArtifactId(), dependency.getVersion());
+                    String path = String.format("%s/%s/%s/%s", super.settings.getLocalRepository(), dependency.getGroupId().replaceAll("\\.", "/"),
+                            dependency.getArtifactId(), dependency.getVersion());
+                    File dependencyDirectory = new File(path);
+                    for (File dependencyFile : dependencyDirectory.listFiles()) {
+                        if (FilenameUtils.getExtension(dependencyFile.getAbsolutePath()).toLowerCase().equals(JAR)) {
+                            FileUtils.copyFileToDirectory(dependencyFile, JBOSS_FUSE_DEPLOY_DIRECTORY);
+                        }
+                    }
                 }
             }
         }
@@ -121,12 +149,12 @@ public class Start extends AbstractGoal {
         ExceptionManager.throwMojoExecutionException(destination.isDirectory(), String.format("%s is directory", destination.getAbsolutePath()));
         LOG.info("Append properties in {}", destination.getAbsolutePath());
         try {
-            StringBuilder sb = new StringBuilder(FileUtils.readFileToString(destination));
+            StringBuilder sb = new StringBuilder(FileUtils.readFileToString(destination, "UTF-8"));
             configuration.getProperties().keySet().stream().forEach((key) -> {
                 String propertyName = String.valueOf(key);
                 sb.append(String.format("%s = %s\n", key, configuration.getProperties().getProperty(propertyName)));
             });
-            FileUtils.write(destination, sb.toString());
+            FileUtils.write(destination, sb.toString(), "UTF-8");
         } catch (IOException ex) {
             throw new MojoExecutionException(ex.getMessage(), ex);
         }
@@ -142,8 +170,8 @@ public class Start extends AbstractGoal {
 
     private static void replace(File destination, String target, String replacement) throws MojoExecutionException {
         try {
-            String text = FileUtils.readFileToString(destination).replace(target, replacement);
-            FileUtils.write(destination, text);
+            String text = FileUtils.readFileToString(destination, "UTF-8").replace(target, replacement);
+            FileUtils.write(destination, text, "UTF-8");
         } catch (IOException ex) {
             throw new MojoExecutionException(ex.getMessage(), ex);
         }

@@ -52,15 +52,18 @@ public abstract class AbstractGoal extends AbstractMojo {
     protected static final String LIST_CMD = "list";
     //STATUS
     protected static final String RUNNING = "Running ...";
-
+    
+    protected static final String JAR = "jar";
     private static final Long MB = 1024 * 1024L;
-
+    
     protected static File JBOSS_FUSE_REPOSITORY_DIRECTORY;
+    
 
     @Parameter(defaultValue = "${settings}", readonly = true, required = true)
     protected Settings settings;
     @Parameter(defaultValue = "${project}", required = true, readonly = true)
     protected MavenProject project;
+    
     
     private Boolean downloadCompleted = Boolean.FALSE;
 
