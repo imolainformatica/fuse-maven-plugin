@@ -2,11 +2,14 @@ package it.imolinfo.maven.plugins.jboss.fuse;
 
 import com.jcraft.jsch.JSchException;
 import static it.imolinfo.maven.plugins.jboss.fuse.AbstractGoal.JBOSS_FUSE_DEPLOY_DIRECTORY;
+import static it.imolinfo.maven.plugins.jboss.fuse.AbstractGoal.LIST_CMD;
 import it.imolinfo.maven.plugins.jboss.fuse.options.Deployment;
 import it.imolinfo.maven.plugins.jboss.fuse.utils.ExceptionManager;
 import it.imolinfo.maven.plugins.jboss.fuse.utils.SSHUtility;
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.commons.io.FileUtils;
@@ -16,8 +19,10 @@ import org.apache.maven.plugins.annotations.Mojo;
 
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Parameter;
+import static org.awaitility.Awaitility.await;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import static org.awaitility.Awaitility.await;
 
 @Mojo(name = "deploy", requiresProject = true, defaultPhase = LifecyclePhase.PRE_INTEGRATION_TEST)
 public class Deploy extends AbstractGoal {
@@ -46,7 +51,8 @@ public class Deploy extends AbstractGoal {
                 Thread.sleep(deployment.getWaitTime());
             }
             checkDeployStatus(deployment);
-        } catch (Exception ex) {
+        } 
+        catch (IOException | InterruptedException | MojoExecutionException | JSchException ex) {
             new Shutdown().execute();
             throw new MojoExecutionException(ex.getMessage(), ex);
         }
@@ -54,28 +60,27 @@ public class Deploy extends AbstractGoal {
     
     private void checkDeployStatus(Deployment deployment) throws IOException, InterruptedException, MojoExecutionException, JSchException {
         String deploymentName = deployment.getDeploymentName() != null ? deployment.getDeploymentName() : deployment.getSource().getName();
-        Long timeout = deployment.getTimeout() != null ? deployment.getTimeout() : DEFAULT_DEPLOY_TIMEOUT;
+        final Long timeout = deployment.getTimeout() != null ? deployment.getTimeout() : DEFAULT_DEPLOY_TIMEOUT;
         String regex = deployment.getExpectedStatus() == null ? Deployment.DEFAULT_EXPECTED_STATUS : deployment.getExpectedStatus();
         if (deployment.getExpectedContextStatus() != null) {
             regex = String.format("%s.*%s", regex, deployment.getExpectedContextStatus());
         }
         regex = String.format("%s.*%s", regex, deploymentName);
         
-        Pattern pattern = Pattern.compile(regex);
-        Runtime runtime = Runtime.getRuntime();
-        String deploymentStatusStr;
-        Long startTime = System.currentTimeMillis();
-        Boolean started;
-        do {
-            deploymentStatusStr = SSHUtility.executeCmd(LIST_CMD);
-            Matcher matcher = pattern.matcher(deploymentStatusStr);
-            started = matcher.find() || matcher.matches();
+        final Pattern pattern = Pattern.compile(regex);        
+        try {
+        await().atMost(timeout, TimeUnit.MILLISECONDS).until((Callable<Boolean>) () -> {
+            String deploymentStatusStr = SSHUtility.executeCmd(LIST_CMD);
             System.out.write(String.format("\r %s", deploymentStatusStr).getBytes());
             
-            Thread.sleep(SLEEP);
-            if (System.currentTimeMillis() - startTime > timeout) {
-                throw new MojoExecutionException("Deploy timeout");
-            }
-        } while (!started);
+            
+            Matcher matcher = pattern.matcher(deploymentStatusStr);
+            return matcher.find() || matcher.matches();
+        });
+        } 
+        catch (Exception ex) {
+            LOG.error(ex.getLocalizedMessage(), ex);
+            throw new MojoExecutionException("Deploy timeout");
+        }
     }
 }

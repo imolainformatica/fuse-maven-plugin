@@ -1,5 +1,7 @@
 package it.imolinfo.maven.plugins.jboss.fuse;
 
+import static it.imolinfo.maven.plugins.jboss.fuse.AbstractGoal.LOCALHOST;
+import static it.imolinfo.maven.plugins.jboss.fuse.AbstractGoal.SSH_TIMEOUT;
 import it.imolinfo.maven.plugins.jboss.fuse.options.Cfg;
 import it.imolinfo.maven.plugins.jboss.fuse.utils.ExceptionManager;
 import java.io.File;
@@ -7,6 +9,8 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.maven.model.Dependency;
@@ -20,6 +24,7 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import static org.awaitility.Awaitility.await;
 
 @Mojo(name = "start", requiresProject = false, defaultPhase = LifecyclePhase.PRE_INTEGRATION_TEST)
 public class Start extends AbstractGoal {
@@ -52,23 +57,14 @@ public class Start extends AbstractGoal {
         try {
             runtime.exec(START_CMD).waitFor();
             LOG.info("Trying connect to ssh:{}@{}:{} ...", SSH_USER, LOCALHOST, SSH_PORT);
-            Long startTime = System.currentTimeMillis();
-            Boolean sshAvailable;
-            do {
-                if (System.currentTimeMillis() - startTime > timeout) {
-                    new Shutdown().execute();
-                    throw new MojoExecutionException("SSH timeout...");
-                }
-                Thread.sleep(SLEEP);
-            } while (!(sshAvailable = checkSSHPort(timeout.intValue())));
-            if (!sshAvailable) {
-                throw new MojoExecutionException(String.format("SSH port %d unavailable", SSH_PORT));
-            }
+            
+            checkSSHPort(timeout.intValue());
+            
             LOG.info("Connected to ssh:{}@{}:{}...", SSH_USER, LOCALHOST, SSH_PORT);
             deployDependencies();
         } catch (Exception ex) {
             new Shutdown().execute();
-            throw new MojoExecutionException(ex.getMessage(), ex);
+            throw new MojoExecutionException(ex.getMessage(), ex);   
         }
     }
 
@@ -177,14 +173,24 @@ public class Start extends AbstractGoal {
         }
     }
 
-    private static Boolean checkSSHPort(Integer connectTimeout) throws MojoExecutionException {
+    private static void checkSSHPort(final Integer connectTimeout) throws MojoExecutionException {
         try {
-            try (Socket socket = new Socket()) {
-                socket.connect(new InetSocketAddress(LOCALHOST, SSH_PORT), connectTimeout);
-                return Boolean.TRUE;
-            }
-        } catch (Exception ex) {
-            return Boolean.FALSE;
-        }
+            await().atMost(connectTimeout, TimeUnit.MILLISECONDS).until((Callable<Boolean>) () -> {
+                try (Socket socket = new Socket()) {
+                    
+                    socket.connect(new InetSocketAddress(LOCALHOST, SSH_PORT), connectTimeout);
+                    
+                    return Boolean.FALSE;
+                }
+                catch (IOException ex) {
+                    return Boolean.TRUE;
+                }
+            });
+        } 
+        catch (Exception ex) {
+            LOG.error(ex.getLocalizedMessage(), ex);
+            throw new MojoExecutionException(String.format("SSH port %d unavailable", SSH_PORT));
+
+        }        
     }
 }

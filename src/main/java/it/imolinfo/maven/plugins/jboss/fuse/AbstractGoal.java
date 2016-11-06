@@ -1,6 +1,6 @@
 package it.imolinfo.maven.plugins.jboss.fuse;
 
-import it.imolinfo.maven.plugins.jboss.fuse.utils.UnzipUtility;
+import it.imolinfo.maven.plugins.jboss.fuse.utils.ArchiveExtractor;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -29,7 +29,6 @@ public abstract class AbstractGoal extends AbstractMojo {
     public static final String SSH_USER = "admin";
     public static final String SSH_PASSWORD = "admin";
     
-    protected static final String JBOSS_FUSE_DOWNLOAD_URL = "https://repository.jboss.org/nexus/content/groups/ea/org/jboss/fuse/jboss-fuse-full/6.2.1.redhat-083/jboss-fuse-full-6.2.1.redhat-083.zip";
     protected static final String JBOSS_FUSE_ZIP_FILE = "jboss-fuse-full-6.2.1.redhat-083.zip";
     protected static final String JBOSS_FUSE_DOWNLOAD_DIRECTORY = "it/imolinfo/maven/plugins/jboss-fuse-maven-plugin";
     protected static final String JBOSS_FUSE_DIRECTORY_NAME = "jboss-fuse-6.2.1.redhat-083";
@@ -63,6 +62,9 @@ public abstract class AbstractGoal extends AbstractMojo {
     protected Settings settings;
     @Parameter(defaultValue = "${project}", required = true, readonly = true)
     protected MavenProject project;
+    @Parameter(defaultValue = "https://repository.jboss.org/nexus/content/groups/ea/org/jboss/fuse/jboss-fuse-full/6.2.1.redhat-083/jboss-fuse-full-6.2.1.redhat-083.zip", required = true, readonly = true)
+    protected String jbossFuseDownloadUrl;
+
     
     
     private Boolean downloadCompleted = Boolean.FALSE;
@@ -90,25 +92,23 @@ public abstract class AbstractGoal extends AbstractMojo {
     }
 
     private void download(File fuseZipFile) throws IOException {
-        LOG.info("Download {} in {}...", JBOSS_FUSE_DOWNLOAD_URL, fuseZipFile.getAbsolutePath());
-        URL url = new URL(JBOSS_FUSE_DOWNLOAD_URL);
+        LOG.info("Download {} in {}...", jbossFuseDownloadUrl, fuseZipFile.getAbsolutePath());
+        URL url = new URL(jbossFuseDownloadUrl);
         URLConnection connection = url.openConnection();
-        try (InputStream inputStream = connection.getInputStream()) {
+        try (InputStream inputStream = connection.getInputStream(); FileOutputStream downloadOutputStream = new FileOutputStream(fuseZipFile)) {
             Long contentLength = connection.getContentLengthLong();
-            try (FileOutputStream downloadOutputStream = new FileOutputStream(fuseZipFile)) {
-                new Thread(new DownloadProgress(fuseZipFile, contentLength)).start();
-                IOUtils.copyLarge(inputStream, downloadOutputStream);
-                downloadOutputStream.flush();
-            } finally {
-                downloadCompleted = Boolean.TRUE;
-            }
+            new Thread(new DownloadProgress(fuseZipFile, contentLength)).start();
+            IOUtils.copyLarge(inputStream, downloadOutputStream);
+            downloadOutputStream.flush();
+        } finally {
+            downloadCompleted = Boolean.TRUE;
         }
         LOG.info("Download completed");
     }
 
     private static void unzip(File zipFile) throws MojoExecutionException {
         try {
-            UnzipUtility.unzip(zipFile.getAbsolutePath(), TARGET_DIRECTORY.getAbsolutePath());
+            ArchiveExtractor.extract(zipFile.getAbsolutePath(), TARGET_DIRECTORY.getAbsolutePath());
         } catch (MojoExecutionException ex) {
             LOG.error(ex.getMessage(), ex);
             zipFile.delete();
