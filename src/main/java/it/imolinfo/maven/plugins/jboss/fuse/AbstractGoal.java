@@ -88,7 +88,7 @@ public abstract class AbstractGoal extends AbstractMojo {
             }
         }
 
-        unzip(fuseZipFile);
+        extractArchive(fuseZipFile);
     }
 
     private void download(File fuseZipFile) throws IOException {
@@ -106,7 +106,7 @@ public abstract class AbstractGoal extends AbstractMojo {
         LOG.info("Download completed");
     }
 
-    private static void unzip(File zipFile) throws MojoExecutionException {
+    private static void extractArchive(File zipFile) throws MojoExecutionException {
         try {
             ArchiveExtractor.extract(zipFile.getAbsolutePath(), TARGET_DIRECTORY.getAbsolutePath());
         } catch (MojoExecutionException ex) {
