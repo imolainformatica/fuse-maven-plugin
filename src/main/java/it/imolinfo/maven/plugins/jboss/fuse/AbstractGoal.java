@@ -1,6 +1,6 @@
 package it.imolinfo.maven.plugins.jboss.fuse;
 
-import it.imolinfo.maven.plugins.jboss.fuse.utils.ArchiveExtractor;
+import it.imolinfo.maven.plugins.jboss.fuse.utils.ArchiveManager;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -108,7 +108,7 @@ public abstract class AbstractGoal extends AbstractMojo {
 
     private static void extractArchive(File zipFile) throws MojoExecutionException {
         try {
-            ArchiveExtractor.extract(zipFile.getAbsolutePath(), TARGET_DIRECTORY.getAbsolutePath());
+            ArchiveManager.extract(zipFile.getAbsolutePath(), TARGET_DIRECTORY.getAbsolutePath());
         } catch (MojoExecutionException ex) {
             LOG.error(ex.getMessage(), ex);
             zipFile.delete();

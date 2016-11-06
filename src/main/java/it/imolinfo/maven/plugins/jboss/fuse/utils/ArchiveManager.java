@@ -15,19 +15,27 @@
  */
 package it.imolinfo.maven.plugins.jboss.fuse.utils;
 
+import it.imolinfo.maven.plugins.jboss.fuse.AbstractGoal;
 import java.io.File;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.maven.plugin.MojoExecutionException;
+import org.codehaus.plexus.archiver.AbstractUnArchiver;
 import org.codehaus.plexus.archiver.tar.TarBZip2UnArchiver;
 import org.codehaus.plexus.archiver.tar.TarGZipUnArchiver;
-import org.codehaus.plexus.archiver.tar.TarUnArchiver;
+import org.codehaus.plexus.archiver.zip.ZipUnArchiver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author ale
  */
-public class ArchiveExtractor {
+public class ArchiveManager {
     
-    private ArchiveExtractor() {
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractGoal.class);
+    
+    private ArchiveManager() {
     }
     
     /**
@@ -37,19 +45,32 @@ public class ArchiveExtractor {
      * @throws MojoExecutionException 
      */
     public static void extract(String archivePath, String destDirectory) throws MojoExecutionException {
-        if (archivePath.toLowerCase().endsWith(".zip")) {
-            UnzipUtility.unzip(archivePath, destDirectory);
+        final AbstractUnArchiver ua; 
+        Pattern p = Pattern.compile(".*\\.([^.]+)$");
+        Matcher m = p.matcher(archivePath.toLowerCase());
+        if (m.find()) {        
+            String ext = m.group(1);
+            LOG.debug("Check extension support for {} of {}", ext, archivePath);
+        
+            switch (m.group(1)) {
+                case "zip":
+                    ua = new ZipUnArchiver();
+                    break;
+                case "bz2":
+                    ua = new TarBZip2UnArchiver();
+                    break;
+                case "tgz":
+                case "gz":
+                    ua = new TarGZipUnArchiver();
+                    break;
+                default:
+                    throw new MojoExecutionException(String.format("Unknown extension %s", ext));
+            }
         }
         else {
-            untar(archivePath, destDirectory);
+            throw new MojoExecutionException("Cannot detect archive type");
         }
-    }
-    
-    
-    
-    private static void untar(String sourceFile, String destDirectory) {
-        final TarUnArchiver ua = sourceFile.toLowerCase().endsWith("gz") ? new TarGZipUnArchiver() : new TarBZip2UnArchiver();
-        ua.setSourceFile(new File(sourceFile));
+        ua.setSourceFile(new File(archivePath));
         File destination = new File(destDirectory);
         destination.mkdirs();
         ua.setDestDirectory(destination);
