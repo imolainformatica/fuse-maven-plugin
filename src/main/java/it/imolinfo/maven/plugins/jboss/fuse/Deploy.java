@@ -75,7 +75,7 @@ public class Deploy extends AbstractGoal {
             
             
             Matcher matcher = pattern.matcher(deploymentStatusStr);
-            return matcher.find() || matcher.matches();
+            return !(matcher.find() || matcher.matches());
         });
         } 
         catch (Exception ex) {
