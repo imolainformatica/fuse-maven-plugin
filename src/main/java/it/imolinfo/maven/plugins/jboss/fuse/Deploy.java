@@ -19,7 +19,6 @@ import org.apache.maven.plugins.annotations.Mojo;
 
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Parameter;
-import static org.awaitility.Awaitility.await;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import static org.awaitility.Awaitility.await;
