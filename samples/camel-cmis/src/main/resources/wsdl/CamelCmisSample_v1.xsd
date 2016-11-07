@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schema targetNamespace="http://schema.camelCmisSample.imolinfo.it/v1"
+        elementFormDefault="qualified" 
+        xmlns="http://www.w3.org/2001/XMLSchema"
+        xmlns:xmime="http://www.w3.org/2005/05/xmlmime"
+        xmlns:tns="http://schema.camelCmisSample.imolinfo.it/v1">
+    
+    
+    <element name="createDocuments" type="tns:createDocumentsType"></element>
+    <element name="createDocumentsResponse" type="tns:createDocumentsResponseType"></element>
+    
+    <complexType name="createDocumentsType">
+        <sequence>
+            <element name="documents" type="tns:createDocumentType" minOccurs="1" maxOccurs="unbounded"/>
+        </sequence>
+    </complexType>
+    
+    <complexType name="createDocumentsResponseType">
+        <sequence>
+            <element name="documents" type="tns:createDocumentResponseType" minOccurs="1" maxOccurs="unbounded"/>
+        </sequence>
+    </complexType>
+    
+    <complexType name="createDocumentType">
+        <sequence>
+            <element name="documentName" type="string" nillable="false"/>
+            <element name="documentContentType" type="string" nillable="false"/>
+            <element name="documentFile" type="base64Binary" nillable="false" xmime:expectedContentTypes="application/octet-stream"/>
+            <element name="folderPath" type="string" nillable="false"/>
+            <element name="documentClass" type="string" nillable="false" default="cmis:document"/>
+        </sequence>
+    </complexType>
+    
+    <complexType name="createDocumentResponseType">
+        <sequence>
+            <element name="documentId" type="string" nillable="false"/>
+            <element name="documentName" type="string" nillable="false"/>
+        </sequence>
+    </complexType>
+    
+</schema>

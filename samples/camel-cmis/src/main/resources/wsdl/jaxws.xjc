@@ -1,0 +1,6 @@
+<bindings
+    xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+    wsdlLocation="CamelCmisSample_v1.wsdl"
+    xmlns="http://java.sun.com/xml/ns/jaxws">
+        <enableWrapperStyle>false</enableWrapperStyle>
+</bindings>
