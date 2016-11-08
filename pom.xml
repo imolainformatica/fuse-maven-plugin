@@ -24,6 +24,12 @@
             <email>gcarnevale@imolinfo.it</email>
         </developer>
         <developer>
+            <name>Alesandro Proscia</name>
+            <organization>Imola Informatica S.P.A.</organization>
+            <organizationUrl>http://www.imolinfo.it/</organizationUrl>
+            <email>aproscia@imolinfo.it</email>
+        </developer>
+        <developer>
             <name>Luca Acquaviva</name>
             <organization>Imola Informatica S.P.A.</organization>
             <organizationUrl>http://www.imolinfo.it/</organizationUrl>
@@ -187,7 +193,7 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-            <version>3.4</version>
+            <version>3.5</version>
         </dependency>
         <dependency>
             <groupId>org.apache.maven</groupId>
@@ -202,7 +208,7 @@
         <dependency>
             <groupId>org.apache.maven.plugin-tools</groupId>
             <artifactId>maven-plugin-annotations</artifactId>
-            <version>3.4</version>
+            <version>3.5</version>
         </dependency>
         <dependency>
             <groupId>org.apache.maven</groupId>
@@ -226,7 +232,7 @@
         <dependency>
             <groupId>com.jcraft</groupId>
             <artifactId>jsch</artifactId>
-            <version>0.1.53</version>
+            <version>0.1.54</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -235,7 +241,12 @@
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-log4j12</artifactId>
+            <artifactId>log4j-over-slf4j</artifactId>
+            <version>1.7.21</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jcl-over-slf4j</artifactId>
             <version>1.7.21</version>
         </dependency>
         <dependency>
@@ -252,7 +263,7 @@
             <groupId>org.codehaus.plexus</groupId>
             <artifactId>plexus-archiver</artifactId>
             <version>3.4</version>
-           </dependency>
+        </dependency>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>

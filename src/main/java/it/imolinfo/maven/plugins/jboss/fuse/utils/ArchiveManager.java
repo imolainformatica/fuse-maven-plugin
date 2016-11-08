@@ -45,23 +45,23 @@ public class ArchiveManager {
      * @throws MojoExecutionException 
      */
     public static void extract(String archivePath, String destDirectory) throws MojoExecutionException {
-        final AbstractUnArchiver ua; 
+        final AbstractUnArchiver abstractUnArchiver; 
         Pattern p = Pattern.compile(".*\\.([^.]+)$");
         Matcher m = p.matcher(archivePath.toLowerCase());
         if (m.find()) {        
             String ext = m.group(1);
-            LOG.debug("Check extension support for {} of {}", ext, archivePath);
-        
-            switch (m.group(1)) {
+            LOG.info("Check extension support for {} of {}", ext, archivePath);
+            
+            switch (ext.toLowerCase()) {
                 case "zip":
-                    ua = new ZipUnArchiver();
+                    abstractUnArchiver = new ZipUnArchiver();
                     break;
                 case "bz2":
-                    ua = new TarBZip2UnArchiver();
+                    abstractUnArchiver = new TarBZip2UnArchiver();
                     break;
                 case "tgz":
                 case "gz":
-                    ua = new TarGZipUnArchiver();
+                    abstractUnArchiver = new TarGZipUnArchiver();
                     break;
                 default:
                     throw new MojoExecutionException(String.format("Unknown extension %s", ext));
@@ -70,11 +70,12 @@ public class ArchiveManager {
         else {
             throw new MojoExecutionException("Cannot detect archive type");
         }
-        ua.setSourceFile(new File(archivePath));
+        abstractUnArchiver.setSourceFile(new File(archivePath));
+        LOG.info(abstractUnArchiver.getSourceFile().getAbsolutePath());
         File destination = new File(destDirectory);
-        destination.mkdirs();
-        ua.setDestDirectory(destination);
-        ua.extract();
+        destination.mkdirs();        
+        abstractUnArchiver.setDestDirectory(destination);
+        abstractUnArchiver.extract();
     }
     
 }
