@@ -72,14 +72,14 @@ public class Start extends AbstractGoal {
         try {
             runtime.exec(START_CMD).waitFor();
             LOG.info("Trying connect to ssh:{}@{}:{} ...", SSH_USER, LOCALHOST, SSH_PORT);
-            
+
             checkSSHPort(timeout.intValue());
-            
+
             LOG.info("Connected to ssh:{}@{}:{}...", SSH_USER, LOCALHOST, SSH_PORT);
             deployDependencies();
         } catch (Exception ex) {
             new Shutdown().execute();
-            throw new MojoExecutionException(ex.getMessage(), ex);   
+            throw new MojoExecutionException(ex.getMessage(), ex);
         }
     }
 
@@ -192,20 +192,17 @@ public class Start extends AbstractGoal {
         try {
             await().atMost(connectTimeout, TimeUnit.MILLISECONDS).until((Callable<Boolean>) () -> {
                 try (Socket socket = new Socket()) {
-                    
                     socket.connect(new InetSocketAddress(LOCALHOST, SSH_PORT), connectTimeout);
-                    
+                    return Boolean.TRUE;
+                } catch (IOException ex) {
+                    LOG.trace(ex.getMessage(), ex);
                     return Boolean.FALSE;
                 }
-                catch (IOException ex) {
-                    return Boolean.TRUE;
-                }
             });
-        } 
-        catch (Exception ex) {
+        } catch (Exception ex) {
             LOG.error(ex.getLocalizedMessage(), ex);
             throw new MojoExecutionException(String.format("SSH port %d unavailable", SSH_PORT));
 
-        }        
+        }
     }
 }

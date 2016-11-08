@@ -24,6 +24,7 @@ import org.codehaus.plexus.archiver.AbstractUnArchiver;
 import org.codehaus.plexus.archiver.tar.TarBZip2UnArchiver;
 import org.codehaus.plexus.archiver.tar.TarGZipUnArchiver;
 import org.codehaus.plexus.archiver.zip.ZipUnArchiver;
+import org.codehaus.plexus.logging.console.ConsoleLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,26 +33,28 @@ import org.slf4j.LoggerFactory;
  * @author ale
  */
 public class ArchiveManager {
-    
+
     private static final Logger LOG = LoggerFactory.getLogger(AbstractGoal.class);
-    
+
     private ArchiveManager() {
     }
-    
+
     /**
-     * Estrae un archivio sulla base dell'estensione (supportato zip, tar.gz, tgz, tar.bz2
+     * Estrae un archivio sulla base dell'estensione (supportato zip, tar.gz,
+     * tgz, tar.bz2
+     *
      * @param archivePath Percorso all'archivio
      * @param destDirectory Directory di destinazione dove estrarre i files
-     * @throws MojoExecutionException 
+     * @throws MojoExecutionException
      */
     public static void extract(String archivePath, String destDirectory) throws MojoExecutionException {
-        final AbstractUnArchiver abstractUnArchiver; 
+        final AbstractUnArchiver abstractUnArchiver;
         Pattern p = Pattern.compile(".*\\.([^.]+)$");
         Matcher m = p.matcher(archivePath.toLowerCase());
-        if (m.find()) {        
+        if (m.find()) {
             String ext = m.group(1);
             LOG.info("Check extension support for {} of {}", ext, archivePath);
-            
+
             switch (ext.toLowerCase()) {
                 case "zip":
                     abstractUnArchiver = new ZipUnArchiver();
@@ -66,16 +69,15 @@ public class ArchiveManager {
                 default:
                     throw new MojoExecutionException(String.format("Unknown extension %s", ext));
             }
-        }
-        else {
+        } else {
             throw new MojoExecutionException("Cannot detect archive type");
         }
+        abstractUnArchiver.enableLogging(new ConsoleLogger());
         abstractUnArchiver.setSourceFile(new File(archivePath));
-        LOG.info(abstractUnArchiver.getSourceFile().getAbsolutePath());
         File destination = new File(destDirectory);
-        destination.mkdirs();        
+        destination.mkdirs();
         abstractUnArchiver.setDestDirectory(destination);
         abstractUnArchiver.extract();
     }
-    
+
 }

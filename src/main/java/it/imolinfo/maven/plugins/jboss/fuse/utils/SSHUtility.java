@@ -31,7 +31,6 @@ import org.apache.commons.io.IOUtils;
  */
 public class SSHUtility {
 
-
     private SSHUtility() {
 
     }
@@ -48,7 +47,7 @@ public class SSHUtility {
         InputStream in = channelExec.getInputStream();
         channelExec.setCommand(command);
         channelExec.connect();
-        String output = IOUtils.toString(in);
+        String output = IOUtils.toString(in, "UTF-8");
         channelExec.disconnect();
         session.disconnect();
         return output;

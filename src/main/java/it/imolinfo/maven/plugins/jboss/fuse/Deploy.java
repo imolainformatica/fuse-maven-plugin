@@ -40,11 +40,11 @@ import static org.awaitility.Awaitility.await;
 
 @Mojo(name = "deploy", requiresProject = true, defaultPhase = LifecyclePhase.PRE_INTEGRATION_TEST)
 public class Deploy extends AbstractGoal {
+
     private static final Logger LOG = LoggerFactory.getLogger(Deploy.class);
     @Parameter
     private List<Deployment> deployments;
 
-    
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         if (deployments != null) {
@@ -65,13 +65,12 @@ public class Deploy extends AbstractGoal {
                 Thread.sleep(deployment.getWaitTime());
             }
             checkDeployStatus(deployment);
-        } 
-        catch (IOException | InterruptedException | MojoExecutionException | JSchException ex) {
+        } catch (IOException | InterruptedException | MojoExecutionException | JSchException ex) {
             new Shutdown().execute();
             throw new MojoExecutionException(ex.getMessage(), ex);
         }
     }
-    
+
     private void checkDeployStatus(Deployment deployment) throws IOException, InterruptedException, MojoExecutionException, JSchException {
         String deploymentName = deployment.getDeploymentName() != null ? deployment.getDeploymentName() : deployment.getSource().getName();
         final Long timeout = deployment.getTimeout() != null ? deployment.getTimeout() : DEFAULT_DEPLOY_TIMEOUT;
@@ -80,19 +79,17 @@ public class Deploy extends AbstractGoal {
             regex = String.format("%s.*%s", regex, deployment.getExpectedContextStatus());
         }
         regex = String.format("%s.*%s", regex, deploymentName);
-        
-        final Pattern pattern = Pattern.compile(regex);        
+
+        final Pattern pattern = Pattern.compile(regex);
         try {
-        await().atMost(timeout, TimeUnit.MILLISECONDS).until((Callable<Boolean>) () -> {
-            String deploymentStatusStr = SSHUtility.executeCmd(LIST_CMD);
-            System.out.write(String.format("\r %s", deploymentStatusStr).getBytes());
-            
-            
-            Matcher matcher = pattern.matcher(deploymentStatusStr);
-            return !(matcher.find() || matcher.matches());
-        });
-        } 
-        catch (Exception ex) {
+            await().atMost(timeout, TimeUnit.MILLISECONDS).until((Callable<Boolean>) () -> {
+                String deploymentStatusStr = SSHUtility.executeCmd(LIST_CMD);
+                System.out.write(String.format("\r %s", deploymentStatusStr).getBytes());
+
+                Matcher matcher = pattern.matcher(deploymentStatusStr);
+                return !(matcher.find() || matcher.matches());
+            });
+        } catch (Exception ex) {
             LOG.error(ex.getLocalizedMessage(), ex);
             throw new MojoExecutionException("Deploy timeout");
         }
