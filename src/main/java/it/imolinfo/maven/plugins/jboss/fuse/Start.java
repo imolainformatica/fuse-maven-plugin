@@ -227,14 +227,14 @@ public class Start extends AbstractGoal {
             }
             if (compositeDataSupport.containsKey("Blueprint")) {
                 String blueprintState = String.valueOf(compositeDataSupport.get("Blueprint"));
-                if (!blueprintState.toUpperCase().equals("CREATED")) {
+                if (!blueprintState.trim().isEmpty() && !blueprintState.toUpperCase().equals("CREATED")) {
                     new Shutdown().execute();
                     throw new MojoExecutionException(String.format("Invalid blueprint state %s [%s %s %s]", blueprintState, id, name, version));
                 }
             }
             if (compositeDataSupport.containsKey("Spring")) {
                 String springState = String.valueOf(compositeDataSupport.get("Spring"));
-                if (!springState.toUpperCase().equals("CREATED")) {
+                if (!springState.trim().isEmpty() && !springState.toUpperCase().equals("CREATED")) {
                     new Shutdown().execute();
                     throw new MojoExecutionException(String.format("Invalid spring state %s [%s %s %s]", springState, id, name, version));
                 }
