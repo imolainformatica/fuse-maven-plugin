@@ -24,6 +24,7 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.maven.plugin.AbstractMojo;
@@ -98,17 +99,19 @@ public abstract class AbstractGoal extends AbstractMojo {
     }
 
     private void download(File fuseZipFile) throws IOException {
-        LOG.info("Download {} in {}...", jbossFuseDownloadUrl, fuseZipFile.getAbsolutePath());
+        File tmpFile = File.createTempFile("fuse", ".temp");
+        LOG.info("Download {} in {}...", jbossFuseDownloadUrl, tmpFile.getAbsolutePath());
         URL url = new URL(jbossFuseDownloadUrl);
         URLConnection connection = url.openConnection();
-        try (InputStream inputStream = connection.getInputStream(); FileOutputStream downloadOutputStream = new FileOutputStream(fuseZipFile)) {
+        try (InputStream inputStream = connection.getInputStream(); FileOutputStream downloadOutputStream = new FileOutputStream(tmpFile)) {
             Long contentLength = connection.getContentLengthLong();
-            new Thread(new DownloadProgress(fuseZipFile, contentLength)).start();
+            new Thread(new DownloadProgress(tmpFile, contentLength)).start();
             IOUtils.copyLarge(inputStream, downloadOutputStream);
             downloadOutputStream.flush();
         } finally {
             downloadCompleted = Boolean.TRUE;
         }
+        FileUtils.moveFile(tmpFile, fuseZipFile);
         LOG.info("Download completed");
     }
 
