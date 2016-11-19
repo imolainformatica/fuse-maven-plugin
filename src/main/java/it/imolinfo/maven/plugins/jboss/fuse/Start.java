@@ -190,7 +190,7 @@ public class Start extends AbstractGoal {
 
     private static void checkSSHPort(final Integer connectTimeout) throws MojoExecutionException {
         try {
-            await().atMost(connectTimeout, TimeUnit.MILLISECONDS).until((Callable<Boolean>) () -> {
+            await().atMost(connectTimeout, TimeUnit.MILLISECONDS).pollInterval(1, TimeUnit.SECONDS).until((Callable<Boolean>) () -> {
                 try (Socket socket = new Socket()) {
                     socket.connect(new InetSocketAddress(LOCALHOST, SSH_PORT), connectTimeout);
                     return Boolean.TRUE;

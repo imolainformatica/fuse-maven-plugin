@@ -62,7 +62,11 @@ public class Deploy extends AbstractGoal {
         try {
             FileUtils.copyFileToDirectory(deployment.getSource(), JBOSS_FUSE_DEPLOY_DIRECTORY);
             if (deployment.getWaitTime() != null) {
-                Thread.sleep(deployment.getWaitTime());
+                await().timeout(deployment.getWaitTime() + 1, TimeUnit.MILLISECONDS)
+                        .pollDelay(deployment.getWaitTime(), TimeUnit.MILLISECONDS)
+                        .until((Callable<Boolean>) () -> {
+                            return Boolean.TRUE;
+                        });
             }
             checkDeployStatus(deployment);
         } catch (IOException | InterruptedException | MojoExecutionException | JSchException ex) {
@@ -87,7 +91,7 @@ public class Deploy extends AbstractGoal {
                 System.out.write(String.format("\r %s", deploymentStatusStr).getBytes());
 
                 Matcher matcher = pattern.matcher(deploymentStatusStr);
-                return !(matcher.find() || matcher.matches());
+                return matcher.find() || matcher.matches();
             });
         } catch (Exception ex) {
             LOG.error(ex.getLocalizedMessage(), ex);

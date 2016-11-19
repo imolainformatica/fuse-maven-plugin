@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.maven.plugin.AbstractMojo;
@@ -29,6 +31,7 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.settings.Settings;
+import static org.awaitility.Awaitility.await;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,13 +40,14 @@ import org.slf4j.LoggerFactory;
  * @author giacomo
  */
 public abstract class AbstractGoal extends AbstractMojo {
+
     private static final Logger LOG = LoggerFactory.getLogger(AbstractGoal.class);
-    
+
     public static final String LOCALHOST = "127.0.0.1";
     public static final Integer SSH_PORT = 8101;
     public static final String SSH_USER = "admin";
     public static final String SSH_PASSWORD = "admin";
-    
+
     protected static final String JBOSS_FUSE_ZIP_FILE = "jboss-fuse-full-6.2.1.redhat-083.zip";
     protected static final String JBOSS_FUSE_DOWNLOAD_DIRECTORY = "it/imolinfo/maven/plugins/jboss-fuse-maven-plugin";
     protected static final String JBOSS_FUSE_DIRECTORY_NAME = "jboss-fuse-6.2.1.redhat-083";
@@ -61,30 +65,26 @@ public abstract class AbstractGoal extends AbstractMojo {
     protected static final Long SLEEP = 1000L;
     protected static final Long DOWNLOAD_SLEEP = 1000L;
     //CMD
-    protected static final String START_CMD =  SystemUtils.IS_OS_WINDOWS ? String.format("%s/start.bat", JBOSS_FUSE_BIN_DIRECTORY.getAbsolutePath()) : String.format("%s/start", JBOSS_FUSE_BIN_DIRECTORY.getAbsolutePath());
+    protected static final String START_CMD = SystemUtils.IS_OS_WINDOWS ? String.format("%s/start.bat", JBOSS_FUSE_BIN_DIRECTORY.getAbsolutePath()) : String.format("%s/start", JBOSS_FUSE_BIN_DIRECTORY.getAbsolutePath());
     protected static final String STOP_CMD = SystemUtils.IS_OS_WINDOWS ? String.format("%s/stop.bat", JBOSS_FUSE_BIN_DIRECTORY.getAbsolutePath()) : String.format("%s/stop", JBOSS_FUSE_BIN_DIRECTORY.getAbsolutePath());
     protected static final String LIST_CMD = "list";
     //STATUS
     protected static final String RUNNING = "Running ...";
-    
+
     protected static final String JAR = "jar";
     private static final Long MB = 1024 * 1024L;
-    
+
     protected static File JBOSS_FUSE_REPOSITORY_DIRECTORY;
-    
 
     @Parameter(defaultValue = "${settings}", readonly = true, required = true)
     protected Settings settings;
     @Parameter(defaultValue = "${project}", required = true, readonly = true)
     protected MavenProject project;
-    //@Parameter(defaultValue = "https://repository.jboss.org/nexus/content/groups/ea/org/jboss/fuse/jboss-fuse-full/6.2.1.redhat-083/jboss-fuse-full-6.2.1.redhat-083.zip", required = true, readonly = true)
-    @Parameter(defaultValue = "http://127.0.0.1/jboss-fuse-full-6.2.1.redhat-083.zip", required = true, readonly = true)
+    @Parameter(defaultValue = "https://repository.jboss.org/nexus/content/groups/ea/org/jboss/fuse/jboss-fuse-full/6.2.1.redhat-083/jboss-fuse-full-6.2.1.redhat-083.zip", required = true, readonly = true)
+    //@Parameter(defaultValue = "http://127.0.0.1/jboss-fuse-full-6.2.1.redhat-083.zip", required = true, readonly = true)
     protected String jbossFuseDownloadUrl;
 
-    
-    
     private Boolean downloadCompleted = Boolean.FALSE;
-
 
     protected void initBinDirectory() {
         for (File binFile : JBOSS_FUSE_BIN_DIRECTORY.listFiles()) {
@@ -144,19 +144,12 @@ public abstract class AbstractGoal extends AbstractMojo {
 
         @Override
         public void run() {
-            while (!downloadCompleted) {
-                try {
-                    Long perc = (100 * downloadFile.length()) / contentLength;
-                    System.out.write(String.format("\r  %d%% %d/%dMB", perc, downloadFile.length() / (MB), contentLength / (MB)).getBytes());
-                } catch (IOException ex) {
-                    LOG.error(ex.getMessage(), ex);
-                }
-                try {
-                    Thread.sleep(DOWNLOAD_SLEEP);
-                } catch (InterruptedException ex) {
-                    LOG.error(ex.getMessage(), ex);
-                }
-            }
+
+            await().forever().pollDelay(DOWNLOAD_SLEEP, TimeUnit.MILLISECONDS).until((Callable<Boolean>) () -> {
+                Long perc = (100 * downloadFile.length()) / contentLength;
+                System.out.write(String.format("\r  %d%% %d/%dMB", perc, downloadFile.length() / (MB), contentLength / (MB)).getBytes());
+                return downloadCompleted;
+            });
         }
 
     }
