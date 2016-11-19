@@ -48,7 +48,7 @@ public class FuseJMXConnector {
     public static FuseJMXConnector getInstance(Long timeout) throws IOException, MalformedURLException, MalformedObjectNameException {
         return instance = (instance != null ? instance : new FuseJMXConnector(timeout));
     }
-    
+
     private Long timeout;
     private MBeanServerConnection connection;
     private ObjectName karafBundles;
@@ -69,8 +69,8 @@ public class FuseJMXConnector {
                 new String[]{"java.lang.String"});
     }
 
-    public Object start(Long bundleId) throws InstanceNotFoundException, MBeanException, ReflectionException, IOException {
-        return (Long) connection.invoke(karafBundles, "start",
+    public void start(Long bundleId) throws InstanceNotFoundException, MBeanException, ReflectionException, IOException {
+        connection.invoke(karafBundles, "start",
                 new Object[]{String.valueOf(bundleId)},
                 new String[]{"java.lang.String"});
     }
