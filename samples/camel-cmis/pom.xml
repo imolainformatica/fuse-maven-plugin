@@ -188,6 +188,17 @@
                             <goal>start</goal>
                         </goals>
                         <configuration>
+                            <features>
+                                <param>
+                                    <feature>camel-http4</feature>
+                                </param>
+                                <param>
+                                    <feature>camel-cmis</feature>
+                                </param>
+                                <param>
+                                    <feature>camel-http</feature>
+                                </param>
+                            </features>
                             <cfg>
                                 <param>
                                     <option>APPEND</option>
@@ -218,25 +229,6 @@
                                 </param>
                             </cfg>
                         </configuration>
-                    </execution>
-                    <execution>
-                        <id>Deploy</id>
-                        <configuration>
-                            <deployments>
-                                <param>
-                                    <source>features.xml</source>
-                                </param>
-                                <param>
-                                    <source>target/${project.build.finalName}.jar</source>
-                                    <expectedContextStatus>Created</expectedContextStatus>
-                                    <deploymentName>${project.name}</deploymentName>
-                                </param>
-                            </deployments>
-                        </configuration>
-                        <phase>pre-integration-test</phase>
-                        <goals>
-                            <goal>deploy</goal>
-                        </goals>
                     </execution>
                     <execution>
                         <id>Shutdown Fuse</id>

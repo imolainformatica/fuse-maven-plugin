@@ -26,7 +26,8 @@ public class Cfg {
     public enum Option {
         APPEND,
         REPLACE,
-        COPY
+        COPY,
+        FEATURES
     }
     
     private Option option; 
