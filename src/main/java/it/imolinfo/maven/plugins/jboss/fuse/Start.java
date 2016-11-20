@@ -18,7 +18,7 @@ package it.imolinfo.maven.plugins.jboss.fuse;
 import it.imolinfo.maven.plugins.jboss.fuse.options.Cfg;
 import it.imolinfo.maven.plugins.jboss.fuse.options.Feature;
 import it.imolinfo.maven.plugins.jboss.fuse.utils.ExceptionManager;
-import it.imolinfo.maven.plugins.jboss.fuse.utils.FuseJMXConnector;
+import it.imolinfo.maven.plugins.jboss.fuse.utils.KarafJMXConnector;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
@@ -59,7 +59,7 @@ public class Start extends AbstractGoal {
 
     @Parameter
     private List<Feature> features;
-    
+
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         LOG.info("Start jboss-fuse");
@@ -101,7 +101,7 @@ public class Start extends AbstractGoal {
             for (Feature feature : features) {
                 LOG.info("Deploy feature {}", feature.getFeature());
                 try {
-                    FuseJMXConnector jMXConnector = FuseJMXConnector.getInstance(timeout);
+                    KarafJMXConnector jMXConnector = KarafJMXConnector.getInstance(timeout);
                     jMXConnector.featureInstall(feature.getFeature());
                 } catch (ReflectionException | MBeanException | InstanceNotFoundException | IOException | MalformedObjectNameException ex) {
                     LOG.error(ex.getMessage(), ex);
@@ -208,12 +208,11 @@ public class Start extends AbstractGoal {
             throw new MojoExecutionException(ex.getMessage(), ex);
         }
     }
-    
+
     private static void deploy(File deployment, Long timeout) throws MojoExecutionException, MojoFailureException {
         try {
-            FuseJMXConnector fuseJMXConnector = FuseJMXConnector.getInstance(timeout);
-            Long bundleId = fuseJMXConnector.install(deployment);
-            fuseJMXConnector.start(bundleId);
+            KarafJMXConnector fuseJMXConnector = KarafJMXConnector.getInstance(timeout);
+            Long bundleId = fuseJMXConnector.install(deployment, Boolean.TRUE);
             TabularDataSupport tabularDataSupport = fuseJMXConnector.list();
             CompositeDataSupport compositeDataSupport = (CompositeDataSupport) tabularDataSupport.get(new Object[]{bundleId});
             String id = String.valueOf(compositeDataSupport.get("ID"));
@@ -227,6 +226,7 @@ public class Start extends AbstractGoal {
             }
             if (compositeDataSupport.containsKey("Blueprint")) {
                 String blueprintState = String.valueOf(compositeDataSupport.get("Blueprint"));
+                LOG.info("{} {} {} {} {}", id, name, version, state, blueprintState);
                 if (!blueprintState.trim().isEmpty() && !blueprintState.toUpperCase().equals("CREATED")) {
                     new Shutdown().execute();
                     throw new MojoExecutionException(String.format("Invalid blueprint state %s [%s %s %s]", blueprintState, id, name, version));
@@ -234,6 +234,7 @@ public class Start extends AbstractGoal {
             }
             if (compositeDataSupport.containsKey("Spring")) {
                 String springState = String.valueOf(compositeDataSupport.get("Spring"));
+                LOG.info("{} {} {} {} {}", id, name, version, state, springState);
                 if (!springState.trim().isEmpty() && !springState.toUpperCase().equals("CREATED")) {
                     new Shutdown().execute();
                     throw new MojoExecutionException(String.format("Invalid spring state %s [%s %s %s]", springState, id, name, version));
