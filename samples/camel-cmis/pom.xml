@@ -189,16 +189,13 @@
                         </goals>
                         <configuration>
                             <features>
-                                <param>
-                                    <feature>camel-http4</feature>
-                                </param>
-                                <param>
-                                    <feature>camel-cmis</feature>
-                                </param>
-                                <param>
-                                    <feature>camel-http</feature>
-                                </param>
+                                camel-http4,
+                                camel-cmis,
+                                camel-http
                             </features>
+                            <bundles>
+                                org.jgroups/jgroups/3.6.11.Final
+                            </bundles>
                             <cfg>
                                 <param>
                                     <option>APPEND</option>

@@ -16,11 +16,11 @@
 package it.imolinfo.maven.plugins.jboss.fuse;
 
 import it.imolinfo.maven.plugins.jboss.fuse.options.Cfg;
-import it.imolinfo.maven.plugins.jboss.fuse.options.Feature;
 import it.imolinfo.maven.plugins.jboss.fuse.utils.ExceptionManager;
 import it.imolinfo.maven.plugins.jboss.fuse.utils.KarafJMXConnector;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import javax.management.InstanceNotFoundException;
 import javax.management.MBeanException;
@@ -29,16 +29,22 @@ import javax.management.ReflectionException;
 import javax.management.openmbean.CompositeDataSupport;
 import javax.management.openmbean.TabularDataSupport;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.FilenameUtils;
-import org.apache.maven.model.Dependency;
-import org.apache.maven.model.Plugin;
+import org.apache.maven.artifact.Artifact;
+import org.apache.maven.artifact.DefaultArtifact;
+import org.apache.maven.artifact.handler.DefaultArtifactHandler;
+import org.apache.maven.artifact.resolver.ArtifactResolutionRequest;
+import org.apache.maven.artifact.resolver.ArtifactResolutionResult;
+import org.apache.maven.artifact.resolver.DebugResolutionListener;
+import org.apache.maven.artifact.resolver.ResolutionListener;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugin.descriptor.PluginDescriptor;
+import org.apache.maven.plugins.annotations.Component;
 import org.apache.maven.plugins.annotations.Mojo;
 
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.repository.RepositorySystem;
+import org.codehaus.plexus.logging.console.ConsoleLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +64,13 @@ public class Start extends AbstractGoal {
     private List<Cfg> cfg;
 
     @Parameter
-    private List<Feature> features;
+    private String features;
+    
+    @Parameter
+    private String bundles;
+    
+    @Component
+    private RepositorySystem repository;
 
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
@@ -98,11 +110,11 @@ public class Start extends AbstractGoal {
 
     private void features() throws MojoExecutionException, MojoFailureException {
         if (features != null) {
-            for (Feature feature : features) {
-                LOG.info("Deploy feature {}", feature.getFeature());
+            for (String feature : features.split(",")) {
+                LOG.info("Deploy feature {}", feature);
                 try {
                     KarafJMXConnector jMXConnector = KarafJMXConnector.getInstance(timeout);
-                    jMXConnector.featureInstall(feature.getFeature());
+                    jMXConnector.featureInstall(feature.trim());
                 } catch (ReflectionException | MBeanException | InstanceNotFoundException | IOException | MalformedObjectNameException ex) {
                     LOG.error(ex.getMessage(), ex);
                     new Shutdown().execute();
@@ -110,25 +122,36 @@ public class Start extends AbstractGoal {
                 }
             }
         }
+
     }
 
     private void deployDependencies() throws MojoExecutionException, MojoFailureException {
-        LOG.info("Deploy plugin dependencies");
-        PluginDescriptor pluginDescriptor = (PluginDescriptor) super.getPluginContext().get("pluginDescriptor");
-        String pluginGroupId = pluginDescriptor.getGroupId();
-        String pluginArtifactiId = pluginDescriptor.getArtifactId();
-        for (Plugin plugin : project.getBuild().getPlugins()) {
-            if (plugin.getGroupId().equals(pluginGroupId) && plugin.getArtifactId().equals(pluginArtifactiId)) {
-                for (Dependency dependency : plugin.getDependencies()) {
-                    LOG.info("Deploy {}:{}:{}", dependency.getGroupId(), dependency.getArtifactId(), dependency.getVersion());
-                    String path = String.format("%s/%s/%s/%s", super.settings.getLocalRepository(), dependency.getGroupId().replaceAll("\\.", "/"),
-                            dependency.getArtifactId(), dependency.getVersion());
-                    File dependencyDirectory = new File(path);
-                    for (File dependencyFile : dependencyDirectory.listFiles()) {
-                        if (FilenameUtils.getExtension(dependencyFile.getAbsolutePath()).toLowerCase().equals(JAR)) {
-                            deploy(dependencyFile, timeout);
-                        }
-                    }
+        if (features != null) {
+            for (String bundle : bundles.split(",")) {
+                LOG.info("Deploy bundle {}", bundle);
+                try {
+                    String[] bundleInfo = bundle.trim().split("/");
+                    ArtifactResolutionRequest request = new ArtifactResolutionRequest();
+                    DefaultArtifactHandler artifactHandler = new DefaultArtifactHandler("jar");
+                    Artifact artifact = new DefaultArtifact(bundleInfo[0], bundleInfo[1], bundleInfo[2],
+                            null, "jar", "", artifactHandler);
+                    request.setArtifact(artifact);
+                    request.setRemoteRepositories(project.getRemoteArtifactRepositories());
+                    request.setManagedVersionMap(project.getManagedVersionMap());
+                    request.setForceUpdate(false);
+                    request.setResolveTransitively(Boolean.FALSE);
+                    List<ResolutionListener> resolutionListeners = new ArrayList<>();
+                    ResolutionListener resolutionListener = new DebugResolutionListener(new ConsoleLogger());
+                    resolutionListeners.add(resolutionListener);
+                    request.setListeners(resolutionListeners);
+                    ArtifactResolutionResult result = repository.resolve(request);
+                    File bundleFile = result.getArtifacts().iterator().next().getFile();
+                    KarafJMXConnector jMXConnector = KarafJMXConnector.getInstance(timeout);
+                    jMXConnector.install(bundleFile, Boolean.TRUE);
+                } catch (ReflectionException | MBeanException | InstanceNotFoundException | IOException | MalformedObjectNameException ex) {
+                    LOG.error(ex.getMessage(), ex);
+                    new Shutdown().execute();
+                    throw new MojoExecutionException(ex.getMessage(), ex);
                 }
             }
         }
