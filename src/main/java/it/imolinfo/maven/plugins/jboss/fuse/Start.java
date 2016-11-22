@@ -64,11 +64,14 @@ public class Start extends AbstractGoal {
     private List<Cfg> cfg;
 
     @Parameter
+    private String etc;
+
+    @Parameter
     private String features;
-    
+
     @Parameter
     private String bundles;
-    
+
     @Component
     private RepositorySystem repository;
 
@@ -80,10 +83,13 @@ public class Start extends AbstractGoal {
         initBinDirectory();
         disableAdminPassword();
         configure();
+        etc();
         startJbosFuse();
         features();
         deployDependencies();
-        deploy(project.getArtifact().getFile(), timeout);
+        if (project.getArtifact().getFile() != null) {
+            deploy(project.getArtifact().getFile(), timeout);
+        }
     }
 
     private void startJbosFuse() throws MojoExecutionException, MojoFailureException {
@@ -108,13 +114,30 @@ public class Start extends AbstractGoal {
         }
     }
 
+    private void etc() throws MojoExecutionException, MojoFailureException {
+        if (etc != null) {
+            for (String cfgFile : etc.split(",")) {
+                try {
+                    cfgFile = cfgFile.trim();
+                    LOG.info("Copy {} in {}", cfgFile, JBOSS_FUSE_ETC_DIRECTORY.getAbsolutePath());
+                    FileUtils.copyFileToDirectory(new File(cfgFile), JBOSS_FUSE_ETC_DIRECTORY);
+                } catch (IOException ex) {
+                    LOG.error(ex.getMessage(), ex);
+                    new Shutdown().execute();
+                    throw new MojoExecutionException(ex.getMessage(), ex);
+                }
+            }
+        }
+    }
+
     private void features() throws MojoExecutionException, MojoFailureException {
         if (features != null) {
             for (String feature : features.split(",")) {
+                feature = feature.trim();
                 LOG.info("Deploy feature {}", feature);
                 try {
                     KarafJMXConnector jMXConnector = KarafJMXConnector.getInstance(timeout);
-                    jMXConnector.featureInstall(feature.trim());
+                    jMXConnector.featureInstall(feature);
                 } catch (ReflectionException | MBeanException | InstanceNotFoundException | IOException | MalformedObjectNameException ex) {
                     LOG.error(ex.getMessage(), ex);
                     new Shutdown().execute();
@@ -128,33 +151,37 @@ public class Start extends AbstractGoal {
     private void deployDependencies() throws MojoExecutionException, MojoFailureException {
         if (features != null) {
             for (String bundle : bundles.split(",")) {
+                bundle = bundle.trim();
                 LOG.info("Deploy bundle {}", bundle);
-                try {
-                    String[] bundleInfo = bundle.trim().split("/");
-                    ArtifactResolutionRequest request = new ArtifactResolutionRequest();
-                    DefaultArtifactHandler artifactHandler = new DefaultArtifactHandler("jar");
-                    Artifact artifact = new DefaultArtifact(bundleInfo[0], bundleInfo[1], bundleInfo[2],
-                            null, "jar", "", artifactHandler);
-                    request.setArtifact(artifact);
-                    request.setRemoteRepositories(project.getRemoteArtifactRepositories());
-                    request.setManagedVersionMap(project.getManagedVersionMap());
-                    request.setForceUpdate(false);
-                    request.setResolveTransitively(Boolean.FALSE);
-                    List<ResolutionListener> resolutionListeners = new ArrayList<>();
-                    ResolutionListener resolutionListener = new DebugResolutionListener(new ConsoleLogger());
-                    resolutionListeners.add(resolutionListener);
-                    request.setListeners(resolutionListeners);
-                    ArtifactResolutionResult result = repository.resolve(request);
-                    File bundleFile = result.getArtifacts().iterator().next().getFile();
-                    KarafJMXConnector jMXConnector = KarafJMXConnector.getInstance(timeout);
-                    jMXConnector.install(bundleFile, Boolean.TRUE);
-                } catch (ReflectionException | MBeanException | InstanceNotFoundException | IOException | MalformedObjectNameException ex) {
-                    LOG.error(ex.getMessage(), ex);
-                    new Shutdown().execute();
-                    throw new MojoExecutionException(ex.getMessage(), ex);
+                if (bundle.startsWith("mvn:")) {
+                    installArtifact(bundle.replace("mvn:", ""));
+                } else if (bundle.startsWith("file://")) {
+                    deploy(new File(bundle.replace("file://", "")), timeout);
+                } else {
+                    throw new MojoExecutionException(String.format("Budnle syntax error: %s", bundle));
                 }
             }
         }
+    }
+
+    private Long installArtifact(String bundle) throws MojoExecutionException, MojoFailureException {
+        String[] bundleInfo = bundle.trim().split("/");
+        ArtifactResolutionRequest request = new ArtifactResolutionRequest();
+        DefaultArtifactHandler artifactHandler = new DefaultArtifactHandler("jar");
+        Artifact artifact = new DefaultArtifact(bundleInfo[0], bundleInfo[1], bundleInfo[2],
+                null, "jar", "", artifactHandler);
+        request.setArtifact(artifact);
+        request.setRemoteRepositories(project.getRemoteArtifactRepositories());
+        request.setManagedVersionMap(project.getManagedVersionMap());
+        request.setForceUpdate(false);
+        request.setResolveTransitively(Boolean.FALSE);
+        List<ResolutionListener> resolutionListeners = new ArrayList<>();
+        ResolutionListener resolutionListener = new DebugResolutionListener(new ConsoleLogger());
+        resolutionListeners.add(resolutionListener);
+        request.setListeners(resolutionListeners);
+        ArtifactResolutionResult result = repository.resolve(request);
+        File bundleFile = result.getArtifacts().iterator().next().getFile();
+        return deploy(bundleFile, timeout);
     }
 
     private static void configure(Cfg configuration) throws IOException, MojoExecutionException {
@@ -232,7 +259,7 @@ public class Start extends AbstractGoal {
         }
     }
 
-    private static void deploy(File deployment, Long timeout) throws MojoExecutionException, MojoFailureException {
+    private static Long deploy(File deployment, Long timeout) throws MojoExecutionException, MojoFailureException {
         try {
             KarafJMXConnector fuseJMXConnector = KarafJMXConnector.getInstance(timeout);
             Long bundleId = fuseJMXConnector.install(deployment, Boolean.TRUE);
@@ -247,6 +274,7 @@ public class Start extends AbstractGoal {
                 new Shutdown().execute();
                 throw new MojoExecutionException(String.format("Invalid bundle state %s [%s %s %s]", state, id, name, version));
             }
+            
             if (compositeDataSupport.containsKey("Blueprint")) {
                 String blueprintState = String.valueOf(compositeDataSupport.get("Blueprint"));
                 LOG.info("{} {} {} {} {}", id, name, version, state, blueprintState);
@@ -263,6 +291,7 @@ public class Start extends AbstractGoal {
                     throw new MojoExecutionException(String.format("Invalid spring state %s [%s %s %s]", springState, id, name, version));
                 }
             }
+            return bundleId;
         } catch (IOException | MalformedObjectNameException | InstanceNotFoundException | MBeanException | ReflectionException ex) {
             new Shutdown().execute();
             throw new MojoExecutionException(ex.getMessage(), ex);

@@ -53,6 +53,7 @@ public abstract class AbstractGoal extends AbstractMojo {
     protected static final File TARGET_DIRECTORY = new File("target");
     protected static final File JBOSS_FUSE_DIRECTORY = new File(String.format("target/%s", JBOSS_FUSE_DIRECTORY_NAME));
     protected static final File JBOSS_FUSE_ETC_DIRECTORY = new File(String.format("%s/etc", JBOSS_FUSE_DIRECTORY.getAbsolutePath()));
+    protected static final File JBOSS_FUSE_LOG_DIRECTORY = new File(String.format("%s/data/log", JBOSS_FUSE_DIRECTORY.getAbsolutePath()));
     protected static final File JBOSS_FUSE_BIN_DIRECTORY = new File(String.format("%s/bin", JBOSS_FUSE_DIRECTORY.getAbsolutePath()));
     protected static final File JBOSS_FUSE_DEPLOY_DIRECTORY = new File(String.format("%s/deploy", JBOSS_FUSE_DIRECTORY.getAbsolutePath()));
     protected static final Integer TIMEOUT = 60000;
