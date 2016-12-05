@@ -270,14 +270,26 @@ public class Start extends AbstractGoal {
             String state = String.valueOf(compositeDataSupport.get("State"));
             String version = String.valueOf(compositeDataSupport.get("Version"));
             LOG.info("{} {} {} {}", id, name, version, state);
+            if (!state.toUpperCase().equals("ACTIVE")) {
+                new Shutdown().execute();
+                throw new MojoExecutionException(String.format("Invalid bundle state %s [%s %s %s]", state, id, name, version));
+            }
             
             if (compositeDataSupport.containsKey("Blueprint")) {
                 String blueprintState = String.valueOf(compositeDataSupport.get("Blueprint"));
                 LOG.info("{} {} {} {} {}", id, name, version, state, blueprintState);
+                if (!blueprintState.trim().isEmpty() && !blueprintState.toUpperCase().equals("CREATED")) {
+                    new Shutdown().execute();
+                    throw new MojoExecutionException(String.format("Invalid blueprint state %s [%s %s %s]", blueprintState, id, name, version));
+                }
             }
             if (compositeDataSupport.containsKey("Spring")) {
                 String springState = String.valueOf(compositeDataSupport.get("Spring"));
                 LOG.info("{} {} {} {} {}", id, name, version, state, springState);
+                if (!springState.trim().isEmpty() && !springState.toUpperCase().equals("CREATED")) {
+                    new Shutdown().execute();
+                    throw new MojoExecutionException(String.format("Invalid spring state %s [%s %s %s]", springState, id, name, version));
+                }
             }
             return bundleId;
         } catch (IOException | MalformedObjectNameException | InstanceNotFoundException | MBeanException | ReflectionException ex) {
