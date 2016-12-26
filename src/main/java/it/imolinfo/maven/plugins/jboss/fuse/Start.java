@@ -1,23 +1,53 @@
+/*
+ * Copyright 2016 Imola Informatica S.P.A..
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package it.imolinfo.maven.plugins.jboss.fuse;
 
+import it.imolinfo.maven.plugins.jboss.fuse.model.Bundle;
 import it.imolinfo.maven.plugins.jboss.fuse.options.Cfg;
 import it.imolinfo.maven.plugins.jboss.fuse.utils.ExceptionManager;
+import it.imolinfo.maven.plugins.jboss.fuse.utils.KarafJMXConnector;
 import java.io.File;
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.Socket;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
+import javax.management.InstanceNotFoundException;
+import javax.management.MBeanException;
+import javax.management.MalformedObjectNameException;
+import javax.management.ReflectionException;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.FilenameUtils;
-import org.apache.maven.model.Dependency;
-import org.apache.maven.model.Plugin;
+import org.apache.maven.artifact.Artifact;
+import org.apache.maven.artifact.DefaultArtifact;
+import org.apache.maven.artifact.handler.DefaultArtifactHandler;
+import org.apache.maven.artifact.resolver.ArtifactResolutionRequest;
+import org.apache.maven.artifact.resolver.ArtifactResolutionResult;
+import org.apache.maven.artifact.resolver.DebugResolutionListener;
+import org.apache.maven.artifact.resolver.ResolutionListener;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugin.descriptor.PluginDescriptor;
+import org.apache.maven.plugins.annotations.Component;
 import org.apache.maven.plugins.annotations.Mojo;
 
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.repository.RepositorySystem;
+import org.awaitility.Awaitility;
+import org.awaitility.Duration;
+import org.awaitility.core.ConditionTimeoutException;
+import org.codehaus.plexus.logging.console.ConsoleLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,37 +66,41 @@ public class Start extends AbstractGoal {
     @Parameter
     private List<Cfg> cfg;
 
+    @Parameter
+    private String etc;
+
+    @Parameter
+    private String features;
+
+    @Parameter
+    private String bundles;
+
+    @Component
+    private RepositorySystem repository;
+
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         LOG.info("Start jboss-fuse");
-        timeout = timeout == null ? SSH_TIMEOUT : timeout;
+        timeout = timeout == null ? TIMEOUT : timeout;
         download();
         initBinDirectory();
         disableAdminPassword();
         configure();
+        etc();
         startJbosFuse();
+        features();
+        deployDependencies();
+        if (project.getArtifact().getFile() != null) {
+            deploy(project.getArtifact().getFile(), timeout);
+        }
+        list(timeout);
     }
 
     private void startJbosFuse() throws MojoExecutionException, MojoFailureException {
         Runtime runtime = Runtime.getRuntime();
         try {
             runtime.exec(START_CMD).waitFor();
-            LOG.info("Trying connect to ssh:{}@{}:{} ...", SSH_USER, LOCALHOST, SSH_PORT);
-            Long startTime = System.currentTimeMillis();
-            Boolean sshAvailable;
-            do {
-                if (System.currentTimeMillis() - startTime > timeout) {
-                    new Shutdown().execute();
-                    throw new MojoExecutionException("SSH timeout...");
-                }
-                Thread.sleep(SLEEP);
-            } while (!(sshAvailable = checkSSHPort(timeout.intValue())));
-            if (!sshAvailable) {
-                throw new MojoExecutionException(String.format("SSH port %d unavailable", SSH_PORT));
-            }
-            LOG.info("Connected to ssh:{}@{}:{}...", SSH_USER, LOCALHOST, SSH_PORT);
-            deployDependencies();
-        } catch (Exception ex) {
+        } catch (IOException | InterruptedException ex) {
             new Shutdown().execute();
             throw new MojoExecutionException(ex.getMessage(), ex);
         }
@@ -84,33 +118,79 @@ public class Start extends AbstractGoal {
         }
     }
 
-    private void deployDependencies() throws IOException {
-        LOG.info("Deploy plugin dependencies");
-        PluginDescriptor pluginDescriptor = (PluginDescriptor) super.getPluginContext().get("pluginDescriptor");
-        String pluginGroupId = pluginDescriptor.getGroupId();
-        String pluginArtifactiId = pluginDescriptor.getArtifactId();
-        for (Plugin plugin : project.getBuild().getPlugins()) {
-            if (plugin.getGroupId().equals(pluginGroupId) && plugin.getArtifactId().equals(pluginArtifactiId)) {
-                for (Dependency dependency : plugin.getDependencies()) {
-                    LOG.info("Deploy {}:{}:{}", dependency.getGroupId(), dependency.getArtifactId(), dependency.getVersion());
-                    String path = String.format("%s/%s/%s/%s", super.settings.getLocalRepository(), dependency.getGroupId().replaceAll("\\.", "/"),
-                            dependency.getArtifactId(), dependency.getVersion());
-                    File dependencyDirectory = new File(path);
-                    for (File dependencyFile : dependencyDirectory.listFiles()) {
-                        if (FilenameUtils.getExtension(dependencyFile.getAbsolutePath()).toLowerCase().equals(JAR)) {
-                            FileUtils.copyFileToDirectory(dependencyFile, JBOSS_FUSE_DEPLOY_DIRECTORY);
-                        }
-                    }
+    private void etc() throws MojoExecutionException, MojoFailureException {
+        if (etc != null) {
+            for (String cfgFile : etc.split(",")) {
+                try {
+                    cfgFile = cfgFile.trim();
+                    LOG.info("Copy {} in {}", cfgFile, JBOSS_FUSE_ETC_DIRECTORY.getAbsolutePath());
+                    FileUtils.copyFileToDirectory(new File(cfgFile), JBOSS_FUSE_ETC_DIRECTORY);
+                } catch (IOException ex) {
+                    LOG.error(ex.getMessage(), ex);
+                    new Shutdown().execute();
+                    throw new MojoExecutionException(ex.getMessage(), ex);
                 }
             }
         }
     }
 
+    private void features() throws MojoExecutionException, MojoFailureException {
+        if (features != null) {
+            for (String feature : features.split(",")) {
+                feature = feature.trim();
+                LOG.info("Deploy feature {}", feature);
+                try {
+                    KarafJMXConnector jMXConnector = KarafJMXConnector.getInstance(timeout);
+                    jMXConnector.featureInstall(feature);
+                } catch (ReflectionException | MBeanException | InstanceNotFoundException | IOException | MalformedObjectNameException ex) {
+                    LOG.error(ex.getMessage(), ex);
+                    new Shutdown().execute();
+                    throw new MojoExecutionException(ex.getMessage(), ex);
+                }
+            }
+        }
+
+    }
+
+    private void deployDependencies() throws MojoExecutionException, MojoFailureException {
+        if (features != null) {
+            for (String bundle : bundles.split(",")) {
+                bundle = bundle.trim();
+                LOG.info("Deploy bundle {}", bundle);
+                if (bundle.startsWith("mvn:")) {
+                    installArtifact(bundle.replace("mvn:", ""));
+                } else if (bundle.startsWith("file://")) {
+                    deploy(new File(bundle.replace("file://", "")), timeout);
+                } else {
+                    throw new MojoExecutionException(String.format("Budnle syntax error: %s", bundle));
+                }
+            }
+        }
+    }
+
+    private Long installArtifact(String bundle) throws MojoExecutionException, MojoFailureException {
+        String[] bundleInfo = bundle.trim().split("/");
+        ArtifactResolutionRequest request = new ArtifactResolutionRequest();
+        DefaultArtifactHandler artifactHandler = new DefaultArtifactHandler("jar");
+        Artifact artifact = new DefaultArtifact(bundleInfo[0], bundleInfo[1], bundleInfo[2],
+                null, "jar", "", artifactHandler);
+        request.setArtifact(artifact);
+        request.setRemoteRepositories(project.getRemoteArtifactRepositories());
+        request.setManagedVersionMap(project.getManagedVersionMap());
+        request.setForceUpdate(false);
+        request.setResolveTransitively(Boolean.FALSE);
+        List<ResolutionListener> resolutionListeners = new ArrayList<>();
+        ResolutionListener resolutionListener = new DebugResolutionListener(new ConsoleLogger());
+        resolutionListeners.add(resolutionListener);
+        request.setListeners(resolutionListeners);
+        ArtifactResolutionResult result = repository.resolve(request);
+        File bundleFile = result.getArtifacts().iterator().next().getFile();
+        return deploy(bundleFile, timeout);
+    }
+
     private static void configure(Cfg configuration) throws IOException, MojoExecutionException {
         ExceptionManager.throwMojoExecutionExceptionIfNull(configuration.getOption(), "Null option");
-        ExceptionManager.throwMojoExecutionExceptionIfNull(configuration.getDestination(), "Null destination");
         File destination = new File(String.format("%s/%s", JBOSS_FUSE_DIRECTORY, configuration.getDestination()));
-        ExceptionManager.throwMojoExecutionException(!destination.exists(), String.format("%s not exists", destination.getAbsolutePath()));
         switch (configuration.getOption()) {
             case COPY:
                 copy(configuration, destination);
@@ -134,6 +214,8 @@ public class Start extends AbstractGoal {
 
     private static void copy(Cfg configuration, File destination) throws MojoExecutionException {
         ExceptionManager.throwMojoExecutionExceptionIfNull(configuration.getSource(), "Null source File");
+        ExceptionManager.throwMojoExecutionExceptionIfNull(configuration.getDestination(), "Null destination");
+        ExceptionManager.throwMojoExecutionException(!destination.exists(), String.format("%s not exists", destination.getAbsolutePath()));
         ExceptionManager.throwMojoExecutionException(!configuration.getSource().exists(), "Source file not exists");
         ExceptionManager.throwMojoExecutionException(!destination.isDirectory(), String.format("%s is file", destination.getAbsolutePath()));
         LOG.info("Add {} in {}", configuration.getSource().getAbsolutePath(), configuration.getDestination());
@@ -146,6 +228,8 @@ public class Start extends AbstractGoal {
 
     private static void append(Cfg configuration, File destination) throws MojoExecutionException {
         ExceptionManager.throwMojoExecutionExceptionIfNull(configuration.getProperties(), "Null properties");
+        ExceptionManager.throwMojoExecutionExceptionIfNull(configuration.getDestination(), "Null destination");
+        ExceptionManager.throwMojoExecutionException(!destination.exists(), String.format("%s not exists", destination.getAbsolutePath()));
         ExceptionManager.throwMojoExecutionException(destination.isDirectory(), String.format("%s is directory", destination.getAbsolutePath()));
         LOG.info("Append properties in {}", destination.getAbsolutePath());
         try {
@@ -162,6 +246,8 @@ public class Start extends AbstractGoal {
 
     private static void replace(Cfg configuration, File destination) throws MojoExecutionException {
         ExceptionManager.throwMojoExecutionExceptionIfNull(configuration.getTarget(), "Null target");
+        ExceptionManager.throwMojoExecutionExceptionIfNull(configuration.getDestination(), "Null destination");
+        ExceptionManager.throwMojoExecutionException(!destination.exists(), String.format("%s not exists", destination.getAbsolutePath()));
         ExceptionManager.throwMojoExecutionExceptionIfNull(configuration.getReplacement(), "Null replacement");
         ExceptionManager.throwMojoExecutionException(destination.isDirectory(), String.format("%s is directory", destination.getAbsolutePath()));
         LOG.info("Replace {} with {} in {}", configuration.getTarget(), configuration.getReplacement(), destination.getAbsolutePath());
@@ -177,14 +263,55 @@ public class Start extends AbstractGoal {
         }
     }
 
-    private static Boolean checkSSHPort(Integer connectTimeout) throws MojoExecutionException {
+    private static Long deploy(File deployment, Long timeout) throws MojoExecutionException, MojoFailureException {
         try {
-            try (Socket socket = new Socket()) {
-                socket.connect(new InetSocketAddress(LOCALHOST, SSH_PORT), connectTimeout);
-                return Boolean.TRUE;
+            final KarafJMXConnector fuseJMXConnector = KarafJMXConnector.getInstance(timeout);
+            final Long bundleId = fuseJMXConnector.install(deployment);
+            fuseJMXConnector.start(bundleId);
+            Bundle bundle = fuseJMXConnector.getBundle(bundleId);
+            waitForBundleState(fuseJMXConnector, bundle);
+            LOG.info("[ {} ] {}.{} {}, [ {} ] [ {} ]",
+                    bundle.getId(),
+                    bundle.getName(),
+                    bundle.getVersion(),
+                    bundle.getState(),
+                    bundle.getBlueprintState() != null ? bundle.getBlueprintState() : "",
+                    bundle.getSpringState() != null ? bundle.getSpringState() : "");
+            return bundleId;
+        } catch (IOException | MalformedObjectNameException | InstanceNotFoundException | MBeanException | ReflectionException ex) {
+            new Shutdown().execute();
+            throw new MojoExecutionException(ex.getMessage(), ex);
+        }
+    }
+
+    private static void list(Long timeout) throws MojoExecutionException, MojoFailureException {
+        try {
+            KarafJMXConnector karafJMXConnector = KarafJMXConnector.getInstance(timeout);
+            for (Bundle bundle : karafJMXConnector.list()) {
+                LOG.info("[ {} ] {}.{} {}, [ {} ] [ {} ]",
+                        bundle.getId(),
+                        bundle.getName(),
+                        bundle.getVersion(),
+                        bundle.getState(),
+                        bundle.getBlueprintState() != null ? bundle.getBlueprintState() : "",
+                        bundle.getSpringState() != null ? bundle.getSpringState() : "");
             }
-        } catch (Exception ex) {
-            return Boolean.FALSE;
+        } catch (MalformedObjectNameException | InstanceNotFoundException | MBeanException | ReflectionException | IOException ex) {
+            new Shutdown().execute();
+            throw new MojoExecutionException(ex.getMessage(), ex);
+        }
+    }
+
+    private static void waitForBundleState(final KarafJMXConnector fuseJMXConnector, final Bundle bundle) {
+        try {
+            if (!bundle.getState().equals(Bundle.State.ACTIVE)) {
+                Awaitility.await().atMost(Duration.TEN_SECONDS).until((Callable<Boolean>) () -> {
+                    LOG.debug("Wait for bundle {} state", bundle.getId());
+                    return fuseJMXConnector.getBundle(bundle.getId()).getState().equals(Bundle.State.ACTIVE);
+                });
+            }
+        } catch (ConditionTimeoutException ex) {
+            LOG.debug(ex.getMessage());
         }
     }
 }
