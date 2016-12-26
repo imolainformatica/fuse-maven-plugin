@@ -1,5 +1,0 @@
-<features>
-	<feature name="filenet-cmis-feature">
-		<feature>camel-cmis</feature>
-	</feature>
-</features>

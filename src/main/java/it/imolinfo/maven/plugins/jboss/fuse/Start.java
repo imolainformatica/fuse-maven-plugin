@@ -15,6 +15,7 @@
  */
 package it.imolinfo.maven.plugins.jboss.fuse;
 
+import it.imolinfo.maven.plugins.jboss.fuse.model.Bundle;
 import it.imolinfo.maven.plugins.jboss.fuse.options.Cfg;
 import it.imolinfo.maven.plugins.jboss.fuse.utils.ExceptionManager;
 import it.imolinfo.maven.plugins.jboss.fuse.utils.KarafJMXConnector;
@@ -22,12 +23,12 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.logging.Level;
 import javax.management.InstanceNotFoundException;
 import javax.management.MBeanException;
 import javax.management.MalformedObjectNameException;
 import javax.management.ReflectionException;
-import javax.management.openmbean.CompositeDataSupport;
-import javax.management.openmbean.TabularDataSupport;
 import org.apache.commons.io.FileUtils;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.DefaultArtifact;
@@ -44,6 +45,9 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.repository.RepositorySystem;
+import org.awaitility.Awaitility;
+import org.awaitility.Duration;
+import org.awaitility.core.ConditionTimeoutException;
 import org.codehaus.plexus.logging.console.ConsoleLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,6 +94,7 @@ public class Start extends AbstractGoal {
         if (project.getArtifact().getFile() != null) {
             deploy(project.getArtifact().getFile(), timeout);
         }
+        list(timeout);
     }
 
     private void startJbosFuse() throws MojoExecutionException, MojoFailureException {
@@ -261,40 +266,53 @@ public class Start extends AbstractGoal {
 
     private static Long deploy(File deployment, Long timeout) throws MojoExecutionException, MojoFailureException {
         try {
-            KarafJMXConnector fuseJMXConnector = KarafJMXConnector.getInstance(timeout);
-            Long bundleId = fuseJMXConnector.install(deployment, Boolean.TRUE);
-            TabularDataSupport tabularDataSupport = fuseJMXConnector.list();
-            CompositeDataSupport compositeDataSupport = (CompositeDataSupport) tabularDataSupport.get(new Object[]{bundleId});
-            String id = String.valueOf(compositeDataSupport.get("ID"));
-            String name = String.valueOf(compositeDataSupport.get("Name"));
-            String state = String.valueOf(compositeDataSupport.get("State"));
-            String version = String.valueOf(compositeDataSupport.get("Version"));
-            LOG.info("{} {} {} {}", id, name, version, state);
-            if (!state.toUpperCase().equals("ACTIVE")) {
-                new Shutdown().execute();
-                throw new MojoExecutionException(String.format("Invalid bundle state %s [%s %s %s]", state, id, name, version));
-            }
-            
-            if (compositeDataSupport.containsKey("Blueprint")) {
-                String blueprintState = String.valueOf(compositeDataSupport.get("Blueprint"));
-                LOG.info("{} {} {} {} {}", id, name, version, state, blueprintState);
-                if (!blueprintState.trim().isEmpty() && !blueprintState.toUpperCase().equals("CREATED")) {
-                    new Shutdown().execute();
-                    throw new MojoExecutionException(String.format("Invalid blueprint state %s [%s %s %s]", blueprintState, id, name, version));
-                }
-            }
-            if (compositeDataSupport.containsKey("Spring")) {
-                String springState = String.valueOf(compositeDataSupport.get("Spring"));
-                LOG.info("{} {} {} {} {}", id, name, version, state, springState);
-                if (!springState.trim().isEmpty() && !springState.toUpperCase().equals("CREATED")) {
-                    new Shutdown().execute();
-                    throw new MojoExecutionException(String.format("Invalid spring state %s [%s %s %s]", springState, id, name, version));
-                }
-            }
+            final KarafJMXConnector fuseJMXConnector = KarafJMXConnector.getInstance(timeout);
+            final Long bundleId = fuseJMXConnector.install(deployment);
+            fuseJMXConnector.start(bundleId);
+            Bundle bundle = fuseJMXConnector.getBundle(bundleId);
+            waitForBundleState(fuseJMXConnector, bundle);
+            LOG.info("[ {} ] {}.{} {}, [ {} ] [ {} ]",
+                    bundle.getId(),
+                    bundle.getName(),
+                    bundle.getVersion(),
+                    bundle.getState(),
+                    bundle.getBlueprintState() != null ? bundle.getBlueprintState() : "",
+                    bundle.getSpringState() != null ? bundle.getSpringState() : "");
             return bundleId;
         } catch (IOException | MalformedObjectNameException | InstanceNotFoundException | MBeanException | ReflectionException ex) {
             new Shutdown().execute();
             throw new MojoExecutionException(ex.getMessage(), ex);
+        }
+    }
+
+    private static void list(Long timeout) throws MojoExecutionException, MojoFailureException {
+        try {
+            KarafJMXConnector karafJMXConnector = KarafJMXConnector.getInstance(timeout);
+            for (Bundle bundle : karafJMXConnector.list()) {
+                LOG.info("[ {} ] {}.{} {}, [ {} ] [ {} ]",
+                        bundle.getId(),
+                        bundle.getName(),
+                        bundle.getVersion(),
+                        bundle.getState(),
+                        bundle.getBlueprintState() != null ? bundle.getBlueprintState() : "",
+                        bundle.getSpringState() != null ? bundle.getSpringState() : "");
+            }
+        } catch (MalformedObjectNameException | InstanceNotFoundException | MBeanException | ReflectionException | IOException ex) {
+            new Shutdown().execute();
+            throw new MojoExecutionException(ex.getMessage(), ex);
+        }
+    }
+
+    private static void waitForBundleState(final KarafJMXConnector fuseJMXConnector, final Bundle bundle) {
+        try {
+            if (!bundle.getState().equals(Bundle.State.ACTIVE)) {
+                Awaitility.await().atMost(Duration.TEN_SECONDS).until((Callable<Boolean>) () -> {
+                    LOG.debug("Wait for bundle {} state", bundle.getId());
+                    return fuseJMXConnector.getBundle(bundle.getId()).getState().equals(Bundle.State.ACTIVE);
+                });
+            }
+        } catch (ConditionTimeoutException ex) {
+            LOG.debug(ex.getMessage());
         }
     }
 }

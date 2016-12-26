@@ -17,8 +17,12 @@ package it.imolinfo.maven.plugins.jboss.fuse;
 
 
 
+import it.imolinfo.maven.plugins.jboss.fuse.utils.KarafJMXConnector;
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
+import javax.management.InstanceNotFoundException;
+import javax.management.MBeanException;
+import javax.management.MalformedObjectNameException;
+import javax.management.ReflectionException;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Mojo;
@@ -33,12 +37,11 @@ public class Shutdown extends AbstractGoal  {
     
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
-        LOG.info("Stop jboss-fuse");
+        LOG.info("Shutdown jboss-fuse");
         try {
-            Runtime runtime = Runtime.getRuntime();
-            Process stop = runtime.exec(STOP_CMD);
-            stop.waitFor(DEFAULT_STOP_TIMEOUT, TimeUnit.MILLISECONDS);
-        } catch (IOException | InterruptedException ex) {
+            KarafJMXConnector jMXConnector = KarafJMXConnector.getInstance(DEFAULT_STOP_TIMEOUT);
+            jMXConnector.shutdown();
+        } catch (IOException | ReflectionException | MBeanException | InstanceNotFoundException | MalformedObjectNameException ex) {
             LOG.error(ex.getMessage(), ex);
             throw new MojoExecutionException(ex.getMessage(), ex);
         }
