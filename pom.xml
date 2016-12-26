@@ -7,7 +7,7 @@
     <packaging>maven-plugin</packaging>
 
     <name>JBoss Fuse Maven Plugin</name>
-    <description>Maven plugin used to deploy and testing Jboss Fuse applications</description>
+    <description>Maven plugin used to deploy and test Jboss Fuse applications</description>
     <url>https://github.com/imolainformatica/fuse-maven-plugin</url>
     <inceptionYear>2016</inceptionYear>
     
