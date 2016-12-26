@@ -1,9 +1,28 @@
+/*
+ * Copyright 2016 Imola Informatica S.P.A..
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package it.imolinfo.maven.plugins.jboss.fuse;
 
 
 
+import it.imolinfo.maven.plugins.jboss.fuse.utils.KarafJMXConnector;
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
+import javax.management.InstanceNotFoundException;
+import javax.management.MBeanException;
+import javax.management.MalformedObjectNameException;
+import javax.management.ReflectionException;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Mojo;
@@ -18,12 +37,11 @@ public class Shutdown extends AbstractGoal  {
     
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
-        LOG.info("Stop jboss-fuse");
+        LOG.info("Shutdown jboss-fuse");
         try {
-            Runtime runtime = Runtime.getRuntime();
-            Process stop = runtime.exec(STOP_CMD);
-            stop.waitFor(DEFAULT_STOP_TIMEOUT, TimeUnit.MILLISECONDS);
-        } catch (IOException | InterruptedException ex) {
+            KarafJMXConnector jMXConnector = KarafJMXConnector.getInstance(DEFAULT_STOP_TIMEOUT);
+            jMXConnector.shutdown();
+        } catch (IOException | ReflectionException | MBeanException | InstanceNotFoundException | MalformedObjectNameException ex) {
             LOG.error(ex.getMessage(), ex);
             throw new MojoExecutionException(ex.getMessage(), ex);
         }
