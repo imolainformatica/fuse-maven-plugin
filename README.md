@@ -76,7 +76,7 @@ Copies the source file in the destination directory
 <plugin>
 	<groupId>it.imolinfo.maven.plugins</groupId>
 	<artifactId>jboss-fuse-maven-plugin</artifactId>
-	<version>2.0.0</version>
+	<version>2.0.1</version>
 	<configuration>
     	<etc>
         	cfg/it.imolinfo.maven.plugins.samples.cfg,<!-- Copy cfg file in the etc directory -->
