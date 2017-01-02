@@ -153,7 +153,7 @@ public class Start extends AbstractGoal {
     }
 
     private void deployDependencies() throws MojoExecutionException, MojoFailureException {
-        if (features != null) {
+        if (bundles != null) {
             for (String bundle : bundles.split(",")) {
                 bundle = bundle.trim();
                 LOG.info("Deploy bundle {}", bundle);
