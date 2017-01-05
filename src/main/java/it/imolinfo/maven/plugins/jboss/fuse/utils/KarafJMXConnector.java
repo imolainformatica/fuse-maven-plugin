@@ -15,6 +15,7 @@
  */
 package it.imolinfo.maven.plugins.jboss.fuse.utils;
 
+import it.imolinfo.maven.plugins.jboss.fuse.AbstractGoal;
 import it.imolinfo.maven.plugins.jboss.fuse.model.Bundle;
 import java.io.File;
 import java.io.IOException;
@@ -74,7 +75,7 @@ public class KarafJMXConnector {
 
     public Long install(File bundleFile) throws InstanceNotFoundException, MBeanException, ReflectionException, IOException {
         return (Long) connection.invoke(osgiFramework, "installBundle",
-                new Object[]{String.format("file://%s", bundleFile.getAbsolutePath())},
+                new Object[]{String.format("%s%s", AbstractGoal.FILE_PREFIX, bundleFile.getAbsolutePath())},
                 new String[]{"java.lang.String"});
     }
 
