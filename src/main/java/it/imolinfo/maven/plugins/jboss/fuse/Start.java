@@ -159,8 +159,8 @@ public class Start extends AbstractGoal {
                 LOG.info("Deploy bundle {}", bundle);
                 if (bundle.startsWith("mvn:")) {
                     installArtifact(bundle.replace("mvn:", ""));
-                } else if (bundle.startsWith("file://")) {
-                    deploy(new File(bundle.replace("file://", "")), timeout);
+                } else if (bundle.startsWith(UNIX_FILE_PREFIX) || bundle.startsWith(WINDOWS_FILE_PREFIX)) {
+                    deploy(new File(bundle.replace(UNIX_FILE_PREFIX, "").replace(WINDOWS_FILE_PREFIX, "")), timeout);
                 } else {
                     throw new MojoExecutionException(String.format("Budnle syntax error: %s", bundle));
                 }
