@@ -46,7 +46,16 @@ public abstract class AbstractGoal extends AbstractMojo {
 
     public static final String LOCALHOST = "127.0.0.1";
     public static final Integer JMX_PORT = 1099;
+    
+    public static final String FILE_PREFIX;
+    public static final String UNIX_FILE_PREFIX = "file://";
+    public static final String WINDOWS_FILE_PREFIX = "file:///";
+    static {
+        FILE_PREFIX = System.getProperty("os.name").toLowerCase().contains("windows")
+                ? WINDOWS_FILE_PREFIX : UNIX_FILE_PREFIX;
 
+    }
+    
     protected static final String JBOSS_FUSE_ZIP_FILE = "jboss-fuse-full-6.2.1.redhat-083.zip";
     protected static final String JBOSS_FUSE_DOWNLOAD_DIRECTORY = "it/imolinfo/maven/plugins/jboss-fuse-maven-plugin";
     protected static final String JBOSS_FUSE_DIRECTORY_NAME = "jboss-fuse-6.2.1.redhat-083";

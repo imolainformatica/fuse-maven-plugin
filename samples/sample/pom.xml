@@ -92,7 +92,7 @@
             <plugin>
                 <groupId>it.imolinfo.maven.plugins</groupId>
                 <artifactId>jboss-fuse-maven-plugin</artifactId>
-                <version>2.0.0</version>
+                <version>2.0.2</version>
                 <configuration>
                     <etc>
                         cfg/it.imolinfo.maven.plugins.samples.cfg
