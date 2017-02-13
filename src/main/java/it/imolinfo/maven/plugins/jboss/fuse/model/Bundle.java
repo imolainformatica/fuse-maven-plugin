@@ -24,7 +24,9 @@ public class Bundle {
     public enum State {
         INSTALLED,
         ACTIVE,
-        RESOLVED
+        RESOLVED,
+        STARTING,
+        STOPPING
     }
     
     private Long id;
