@@ -236,7 +236,7 @@ public class Start extends AbstractGoal {
             StringBuilder sb = new StringBuilder(FileUtils.readFileToString(destination, "UTF-8"));
             configuration.getProperties().keySet().stream().forEach((key) -> {
                 String propertyName = String.valueOf(key);
-                sb.append(String.format("%s = %s\n", key, configuration.getProperties().getProperty(propertyName)));
+                sb.append(String.format("%s=%s\n", key, configuration.getProperties().getProperty(propertyName)));
             });
             FileUtils.write(destination, sb.toString(), "UTF-8");
         } catch (IOException ex) {
