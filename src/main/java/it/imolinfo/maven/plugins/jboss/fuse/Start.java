@@ -24,6 +24,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.management.InstanceNotFoundException;
 import javax.management.MBeanException;
 import javax.management.MalformedObjectNameException;
@@ -75,6 +77,12 @@ public class Start extends AbstractGoal {
     @Parameter
     private String bundles;
 
+    @Parameter
+    private String bundlesPostDeploy;
+
+    @Parameter(required = false)
+    private Integer bundleStartLevel;
+
     @Component
     private RepositorySystem repository;
 
@@ -89,10 +97,11 @@ public class Start extends AbstractGoal {
         etc();
         startJbosFuse();
         features();
-        deployDependencies();
+        deployBundles(bundles, timeout);
         if (project.getArtifact().getFile() != null) {
-            deploy(project.getArtifact().getFile(), timeout);
+            deploy(project.getArtifact().getFile(), timeout, bundleStartLevel);
         }
+        deployBundles(bundlesPostDeploy, timeout);
         list(timeout);
     }
 
@@ -152,15 +161,23 @@ public class Start extends AbstractGoal {
 
     }
 
-    private void deployDependencies() throws MojoExecutionException, MojoFailureException {
+    private void deployBundles(String bundles, Long timeout) throws MojoExecutionException, MojoFailureException {
         if (bundles != null) {
             for (String bundle : bundles.split(",")) {
                 bundle = bundle.trim();
+                Integer bundleLevel = null;
                 LOG.info("Deploy bundle {}", bundle);
+                Pattern pattern = Pattern.compile("\\[([0-9]+)\\]$");
+                Matcher matcher = pattern.matcher(bundle);
+                if (matcher.find()) {
+                    bundleLevel = Integer.parseInt(matcher.group(1));
+                    bundle = matcher.replaceAll("");
+                    LOG.info("Set bundleLevel {} for {}", bundleLevel, bundle);
+                }
                 if (bundle.startsWith("mvn:")) {
-                    installArtifact(bundle.replace("mvn:", ""));
+                    installArtifact(bundle.replace("mvn:", ""), bundleLevel);
                 } else if (bundle.startsWith(UNIX_FILE_PREFIX) || bundle.startsWith(WINDOWS_FILE_PREFIX)) {
-                    deploy(new File(bundle.replace(UNIX_FILE_PREFIX, "").replace(WINDOWS_FILE_PREFIX, "")), timeout);
+                    deploy(new File(bundle.replace(UNIX_FILE_PREFIX, "").replace(WINDOWS_FILE_PREFIX, "")), timeout, bundleLevel);
                 } else {
                     throw new MojoExecutionException(String.format("Budnle syntax error: %s", bundle));
                 }
@@ -168,7 +185,7 @@ public class Start extends AbstractGoal {
         }
     }
 
-    private Long installArtifact(String bundle) throws MojoExecutionException, MojoFailureException {
+    private Long installArtifact(String bundle, Integer bundleLevel) throws MojoExecutionException, MojoFailureException {
         String[] bundleInfo = bundle.trim().split("/");
         ArtifactResolutionRequest request = new ArtifactResolutionRequest();
         DefaultArtifactHandler artifactHandler = new DefaultArtifactHandler("jar");
@@ -185,7 +202,7 @@ public class Start extends AbstractGoal {
         request.setListeners(resolutionListeners);
         ArtifactResolutionResult result = repository.resolve(request);
         File bundleFile = result.getArtifacts().iterator().next().getFile();
-        return deploy(bundleFile, timeout);
+        return deploy(bundleFile, timeout, bundleLevel);
     }
 
     private static void configure(Cfg configuration) throws IOException, MojoExecutionException {
@@ -263,10 +280,13 @@ public class Start extends AbstractGoal {
         }
     }
 
-    private static Long deploy(File deployment, Long timeout) throws MojoExecutionException, MojoFailureException {
+    private static Long deploy(File deployment, Long timeout, Integer bundleStartLevel) throws MojoExecutionException, MojoFailureException {
         try {
             final KarafJMXConnector fuseJMXConnector = KarafJMXConnector.getInstance(timeout);
             final Long bundleId = fuseJMXConnector.install(deployment);
+            if (bundleStartLevel != null) {
+                fuseJMXConnector.setStartLevel(bundleId, bundleStartLevel);
+            }
             fuseJMXConnector.start(bundleId);
             Bundle bundle = fuseJMXConnector.getBundle(bundleId);
             waitForBundleState(fuseJMXConnector, bundle);
