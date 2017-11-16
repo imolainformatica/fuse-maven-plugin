@@ -79,6 +79,13 @@ public class KarafJMXConnector {
                 new String[]{"java.lang.String"});
     }
 
+    public void setStartLevel(Long bundleId, Integer startLevel) throws InstanceNotFoundException, MBeanException, ReflectionException, IOException {
+        LOG.info("Set start level {} bundle {}", startLevel, bundleId);
+        connection.invoke(osgiFramework, "setBundleStartLevel",
+                new Object[]{bundleId, startLevel},
+                new String[]{long.class.getName(), int.class.getName()});
+    }
+
     public void start(Long bundleId) throws InstanceNotFoundException, MBeanException, ReflectionException, IOException {
         LOG.info("Start bundle {}", bundleId);
         connection.invoke(osgiFramework, "startBundle",
