@@ -26,6 +26,7 @@ import javax.management.ReflectionException;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Mojo;
+import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,15 +36,22 @@ import org.slf4j.LoggerFactory;
 public class Shutdown extends AbstractGoal  {
     private static final Logger LOG = LoggerFactory.getLogger(Shutdown.class);
     
+    @Parameter
+    private String skip;
+    
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
-        LOG.info("Shutdown jboss-fuse");
-        try {
-            KarafJMXConnector jMXConnector = KarafJMXConnector.getInstance(DEFAULT_STOP_TIMEOUT);
-            jMXConnector.shutdown();
-        } catch (IOException | ReflectionException | MBeanException | InstanceNotFoundException | MalformedObjectNameException ex) {
-            LOG.error(ex.getMessage(), ex);
-            throw new MojoExecutionException(ex.getMessage(), ex);
+        if (skip != null && "true".equalsIgnoreCase(skip)) {
+        	LOG.info("Shutdown jboss-fuse goal skipped from configuration");
+        } else {
+	        LOG.info("Shutdown jboss-fuse");
+	        try {
+	            KarafJMXConnector jMXConnector = KarafJMXConnector.getInstance(DEFAULT_STOP_TIMEOUT);
+	            jMXConnector.shutdown();
+	        } catch (IOException | ReflectionException | MBeanException | InstanceNotFoundException | MalformedObjectNameException ex) {
+	            LOG.error(ex.getMessage(), ex);
+	            throw new MojoExecutionException(ex.getMessage(), ex);
+	        }
         }
     }
 }
