@@ -32,8 +32,10 @@ Stops JBoss Fuse
 | Parameter | Type | Required | Description | Default |
 |---|---|---|---|---|
 | etc | String | False | The cfg files list to copy in the etc directory| null |
+| bundleStartLevel | String | False | The start level for current artifact bundle | 80 |
 | features | String | False | The features list to install | null |
-| bundles | String | False | The bundles list to install | null |
+| bundles | String | False | The bundles list to install <u>before the current artifact</u>. If you want to define the start level, append the [X] notation. Example:  mvn:org.apache.cxf/cxf-rt-features-loggingd/1.0-0[40] | null |
+| bundlesPostDeploy | String | false | The bundles to install <u>after current artifact</u>. | null |
 | cfg | List | False | The configuration list to apply to JBoss Fuse | null |
 | timeout | Long | False | The timeout, in milliseconds, to wait for until JBoss Fuse is started | 60000 |
 
@@ -76,7 +78,7 @@ Copies the source file in the destination directory
 <plugin>
 	<groupId>it.imolinfo.maven.plugins</groupId>
 	<artifactId>jboss-fuse-maven-plugin</artifactId>
-	<version>2.0.1</version>
+	<version>2.1.0</version>
 	<configuration>
     	<etc>
         	cfg/it.imolinfo.maven.plugins.samples.cfg,<!-- Copy cfg file in the etc directory -->
@@ -88,7 +90,7 @@ Copies the source file in the destination directory
         	camel-cmis
     	</features>
     	<bundles>
-        	mvn:org.jgroups/jgroups/3.6.11.Final,
+        	mvn:org.jgroups/jgroups/3.6.11.Final[40],
         	file://${basedir}target/bundle.jar
     	</bundles>
 	</configuration>

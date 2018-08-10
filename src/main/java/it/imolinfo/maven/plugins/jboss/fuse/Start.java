@@ -62,6 +62,12 @@ public class Start extends AbstractGoal {
     private static final String DEFAULT_ADMIN_CONFIG = "#admin=admin,admin,manager,viewer,Monitor, Operator, Maintainer, Deployer, Auditor, Administrator, SuperUser";
     private static final String ADMIN_CONFIG = "admin=admin,admin,manager,viewer,Monitor, Operator, Maintainer, Deployer, Auditor, Administrator, SuperUser";
 
+    /**
+     * parametro per skippare da configurazione la fase di start se i test sono skippati
+     */
+    @Parameter
+    private String skip;
+    
     @Parameter
     private Long timeout;
 
@@ -88,21 +94,25 @@ public class Start extends AbstractGoal {
 
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
-        LOG.info("Start jboss-fuse");
-        timeout = timeout == null ? TIMEOUT : timeout;
-        download();
-        initBinDirectory();
-        disableAdminPassword();
-        configure();
-        etc();
-        startJbosFuse();
-        features();
-        deployBundles(bundles, timeout);
-        if (project.getArtifact().getFile() != null) {
-            deploy(project.getArtifact().getFile(), timeout, bundleStartLevel);
+        if (skip != null && "true".equalsIgnoreCase(skip)) {
+        	LOG.info("Start jboss-fuse goal skipped from configuration");
+        } else {
+	    	LOG.info("Start jboss-fuse");
+	        timeout = timeout == null ? TIMEOUT : timeout;
+	        download();
+	        initBinDirectory();
+	        disableAdminPassword();
+	        configure();
+	        etc();
+	        startJbosFuse();
+	        features();
+	        deployBundles(bundles, timeout);
+	        if (project.getArtifact().getFile() != null) {
+	            deploy(project.getArtifact().getFile(), timeout, bundleStartLevel);
+	        }
+	        deployBundles(bundlesPostDeploy, timeout);
+	        list(timeout);
         }
-        deployBundles(bundlesPostDeploy, timeout);
-        list(timeout);
     }
 
     private void startJbosFuse() throws MojoExecutionException, MojoFailureException {
